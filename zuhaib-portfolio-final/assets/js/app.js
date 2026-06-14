@@ -485,13 +485,13 @@ const AVAIL = {
   },
   apply(mode){
     mode = ['fulltime','freelance','both','none'].includes(mode)?mode:'none';
-    // availability tag
     const tag=document.getElementById('availTag');
+    const bar=document.getElementById('availBar');
     const txt=this.line[mode];
-    if(txt){tag.textContent=txt;tag.hidden=false;} else {tag.hidden=true;tag.textContent='';}
-    // CV links
-    document.querySelectorAll('.cv-link').forEach(a=>a.setAttribute('href',this.cv[mode]));
-    // also update Zuvi's CV answer link target
+    // desktop inline tag
+    if(txt){tag.textContent=txt;tag.hidden=false;}else{tag.hidden=true;tag.textContent='';}
+    // mobile bar below nav
+    if(bar){if(txt){bar.textContent=txt;bar.hidden=false;document.body.classList.add('avail-active');}else{bar.hidden=true;bar.textContent='';document.body.classList.remove('avail-active');}}    document.querySelectorAll('.cv-link').forEach(a=>a.setAttribute('href',this.cv[mode]));
     window.__cvHref=this.cv[mode];
   }
 };
