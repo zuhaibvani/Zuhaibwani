@@ -1,3 +1,38 @@
+/* ============ MEDIA PROTECTION ============
+   Deterrents against casual download/lifting. Note: any browser must load
+   media to display it, so determined extraction is impossible to fully block
+   on ANY site — real ownership protection is the embedded copyright metadata
+   (EXIF/IPTC/XMP on images, tags on video) baked into every file. */
+(function(){
+  // block right-click / long-press context menu on images & video
+  document.addEventListener('contextmenu',e=>{
+    if(e.target.closest('img,video,.gcell,.fmedia,.lb,.pdfv-stage,canvas'))e.preventDefault();
+  },{capture:true});
+  // block drag-to-desktop on images
+  document.addEventListener('dragstart',e=>{
+    if(e.target.tagName==='IMG'||e.target.closest('img,video'))e.preventDefault();
+  },{capture:true});
+  // block common save/print shortcuts
+  document.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if((e.ctrlKey||e.metaKey)&&(k==='s'||k==='p'||k==='u')){
+      // allow in form fields only
+      if(!/input|textarea/i.test(e.target.tagName)){e.preventDefault();}
+    }
+  });
+  // make all images non-draggable + non-selectable as they appear
+  function harden(){
+    document.querySelectorAll('img:not([data-h]),video:not([data-h])').forEach(el=>{
+      el.setAttribute('draggable','false');
+      el.setAttribute('data-h','1');
+      el.style.webkitUserSelect='none';el.style.userSelect='none';
+      el.style.webkitTouchCallout='none';
+    });
+  }
+  harden();
+  new MutationObserver(harden).observe(document.documentElement,{childList:true,subtree:true});
+})();
+
 /* ============ SFX ENGINE ============ */
 const SFX={ctx:null,on:localStorage.getItem('zw_sfx')!=='off' && !matchMedia('(prefers-reduced-motion:reduce)').matches,
  init(){if(!this.ctx){try{this.ctx=new (AudioContext||webkitAudioContext)();}catch(e){}}},
@@ -65,7 +100,7 @@ const pm=document.getElementById('pm'),pmInner=document.getElementById('pminner'
 let LBLIST=[],LBIDX=0;
 function mediaHTML(m,idx){
   if(m.type==='yt')return `<iframe src="${m.src}?rel=0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="${m.cap||''}"></iframe>`;
-  if(m.type==='video'){return `<video src="${m.src}" ${m.poster?`poster="${m.poster}"`:''} controls playsinline preload="metadata"></video>`;}
+  if(m.type==='video'){return `<video src="${m.src}" ${m.poster?`poster="${m.poster}"`:''} controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false" draggable="false" playsinline preload="metadata"></video>`;}
   if(m.type==='sketchfab')return `<iframe class="sk" src="${m.src}" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" title="Interactive 3D model"></iframe>`;
   if(m.type==='pdf')return `<a href="${m.src}" target="_blank" rel="noopener" style="display:block;position:relative"><img loading="lazy" src="${m.poster||'assets/img/presentation-1.jpg'}" alt="Interactive PDF preview"/><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,12,.45);color:#fff;font-family:'Space Grotesk';font-weight:600;font-size:15px;gap:9px">Open interactive PDF ↗</span></a>`;
   return `<img loading="lazy" src="${m.src}" alt="${m.cap||''}" data-lb="${idx}"/>`;
@@ -78,9 +113,30 @@ function renderPDFs(){
     const root=document.getElementById(id);if(!root)return;
     const stage=root.querySelector('.pdfv-stage'),pl=root.querySelector('.pl');
     const pgL=root.querySelector('.pg'),pv=root.querySelector('.pv'),pn=root.querySelector('.pn'),fsBtn=root.querySelector('.fsBtn');
-    let cv=document.createElement('canvas');stage.appendChild(cv);
-    let pdf=null,page=1,total=0,rendering=false;
-    pdfjsLib.getDocument(src).promise.then(doc=>{pdf=doc;total=doc.numPages;if(pl)pl.style.display='none';draw();})
+    // wrapper holds canvas + link layer, stacked
+    let wrap=document.createElement('div');wrap.className='pdfv-canvaswrap';
+    let cv=document.createElement('canvas');wrap.appendChild(cv);
+    let annoLayer=document.createElement('div');annoLayer.className='annotationLayer';wrap.appendChild(annoLayer);
+    stage.appendChild(wrap);
+    let pdf=null,page=1,total=0,rendering=false,linkService=null;
+    // a minimal link service so internal (same-doc) links jump pages in-viewer
+    function makeLinkService(){
+      return {
+        externalLinkTarget:2, externalLinkRel:'noopener',
+        getDestinationHash:()=>'#', getAnchorUrl:(h)=>h,
+        addLinkAttributes:(el,{url})=>{ if(url){el.href=url;el.target='_blank';el.rel='noopener';} },
+        async goToDestination(dest){
+          try{
+            const ref=Array.isArray(dest)?dest[0]:dest;
+            const idx=await pdf.getPageIndex(ref);
+            page=idx+1; draw(); SFX.tick();
+          }catch(e){}
+        },
+        goToPage(p){page=p;draw();},
+        navigateTo(dest){this.goToDestination(dest);}
+      };
+    }
+    pdfjsLib.getDocument(src).promise.then(doc=>{pdf=doc;total=doc.numPages;linkService=makeLinkService();if(pl)pl.style.display='none';draw();})
       .catch(()=>{
         if(pl){pl.innerHTML=`<div style="text-align:center;padding:30px">
           <div style="font-size:13px;color:#cfd3da;margin-bottom:12px">Preview needs a live server.</div>
@@ -91,11 +147,40 @@ function renderPDFs(){
       if(rendering||!pdf)return;rendering=true;
       pdf.getPage(page).then(pg=>{
         const fs=root.classList.contains('fs');
-        const avail=fs?(window.innerWidth-40):Math.min(stage.clientWidth-20,860);
-        const v0=pg.getViewport({scale:1});const scale=avail/v0.width;
-        const dpr=window.devicePixelRatio||1;const v=pg.getViewport({scale:scale*dpr});
-        cv.width=v.width;cv.height=v.height;cv.style.width=avail+'px';cv.style.height=(v.height/dpr)+'px';
-        pg.render({canvasContext:cv.getContext('2d'),viewport:v}).promise.then(()=>{
+        const v0=pg.getViewport({scale:1});
+        let cssW,cssH;
+        if(fs){
+          const availW=stage.clientWidth-32, availH=stage.clientHeight-32;
+          const s=Math.min(availW/v0.width, availH/v0.height);  // contain both axes
+          cssW=v0.width*s; cssH=v0.height*s;
+        } else {
+          const availW=Math.min(stage.clientWidth-20,860);
+          let s=availW/v0.width;
+          const maxH=Math.min(window.innerHeight*0.7,640);
+          if(v0.height*s>maxH){s=maxH/v0.height;}  // clamp portrait height
+          cssW=v0.width*s; cssH=v0.height*s;
+        }
+        const cssScale=cssW/v0.width;
+        const dpr=window.devicePixelRatio||1;
+        const v=pg.getViewport({scale:cssScale*dpr});
+        cv.width=v.width;cv.height=v.height;
+        cv.style.width=cssW+'px';cv.style.height=cssH+'px';
+        wrap.style.width=cssW+'px';wrap.style.height=cssH+'px';
+        pg.render({canvasContext:cv.getContext('2d'),viewport:v}).promise.then(async()=>{
+          // ---- interactive link layer (clickable hyperlinks IN the page) ----
+          annoLayer.innerHTML='';
+          annoLayer.style.width=cssW+'px';annoLayer.style.height=cssH+'px';
+          try{
+            const annos=await pg.getAnnotations({intent:'display'});
+            const lv=pg.getViewport({scale:cssScale});
+            if(window.pdfjsLib&&pdfjsLib.AnnotationLayer&&annos.length){
+              pdfjsLib.AnnotationLayer.render({
+                viewport:lv.clone({dontFlip:true}),
+                div:annoLayer, annotations:annos, page:pg,
+                linkService:linkService, renderForms:false, downloadManager:null
+              });
+            }
+          }catch(e){}
           rendering=false;if(pgL)pgL.textContent=`${page} / ${total}`;
           if(pv)pv.disabled=page<=1;if(pn)pn.disabled=page>=total;
         });
@@ -105,10 +190,14 @@ function renderPDFs(){
     if(pn)pn.addEventListener('click',()=>{if(page<total){page++;draw();SFX.tick();}});
     if(fsBtn)fsBtn.addEventListener('click',()=>{
       root.classList.toggle('fs');
-      fsBtn.textContent=root.classList.contains('fs')?'⤡ Exit':'⤢ Fullscreen';
-      document.body.style.overflow=root.classList.contains('fs')?'hidden':'hidden';
-      setTimeout(draw,60);SFX.pop();
+      const on=root.classList.contains('fs');
+      fsBtn.textContent=on?'⤡ Exit fullscreen':'⤢ Fullscreen';
+      document.body.style.overflow='hidden';
+      setTimeout(draw,80);SFX.pop();
     });
+    // Esc exits fullscreen; redraw on resize/orientation change
+    addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('fs')){root.classList.remove('fs');if(fsBtn)fsBtn.textContent='⤢ Fullscreen';setTimeout(draw,80);}});
+    let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(pdf)draw();},150);});
   });
   PDFQUEUE=[];
 }
