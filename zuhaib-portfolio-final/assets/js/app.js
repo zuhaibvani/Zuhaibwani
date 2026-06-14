@@ -106,118 +106,65 @@ function mediaHTML(m,idx){
   return `<img loading="lazy" src="${m.src}" alt="${m.cap||''}" data-lb="${idx}"/>`;
 }
 let PDFQUEUE=[];
+// ---- Native PDF embedding -------------------------------------------------
+// The browser's built-in PDF viewer gives correct page sizing, scrolling,
+// zoom, text selection and clickable links for free. The Fullscreen API then
+// gives true OS-level fullscreen (like Acrobat). No canvas, no pdf.js needed.
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+function pdfFsRequest(el){ return el.requestFullscreen || el.webkitRequestFullscreen; }
+function pdfFsElement(){ return document.fullscreenElement || document.webkitFullscreenElement; }
+function pdfFsExit(){ (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document); }
 function renderPDFs(){
-  if(!window.pdfjsLib){PDFQUEUE=[];return;}
-  try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}catch(e){}
   PDFQUEUE.forEach(({id,src})=>{
-    const root=document.getElementById(id);if(!root)return;
-    const stage=root.querySelector('.pdfv-stage'),pl=root.querySelector('.pl');
-    const pgL=root.querySelector('.pg'),pv=root.querySelector('.pv'),pn=root.querySelector('.pn'),fsBtn=root.querySelector('.fsBtn');
-    // wrapper holds canvas + link layer, stacked
-    let wrap=document.createElement('div');wrap.className='pdfv-canvaswrap';
-    let cv=document.createElement('canvas');wrap.appendChild(cv);
-    let annoLayer=document.createElement('div');annoLayer.className='annotationLayer';wrap.appendChild(annoLayer);
-    stage.appendChild(wrap);
-    let pdf=null,page=1,total=0,rendering=false,linkService=null;
-    // a minimal link service so internal (same-doc) links jump pages in-viewer
-    function makeLinkService(){
-      return {
-        externalLinkTarget:2, externalLinkRel:'noopener',
-        getDestinationHash:()=>'#', getAnchorUrl:(h)=>h,
-        addLinkAttributes:(el,{url})=>{ if(url){el.href=url;el.target='_blank';el.rel='noopener';} },
-        async goToDestination(dest){
-          try{
-            const ref=Array.isArray(dest)?dest[0]:dest;
-            const idx=await pdf.getPageIndex(ref);
-            page=idx+1; draw(); SFX.tick();
-          }catch(e){}
-        },
-        goToPage(p){page=p;draw();},
-        navigateTo(dest){this.goToDestination(dest);}
-      };
+    const root=document.getElementById(id); if(!root) return;
+    const stage=root.querySelector('.pdfv-stage');
+    const fsBtn=root.querySelector('.fsBtn');
+    if(!stage) return;
+    stage.innerHTML='';
+
+    // iOS Safari can't reliably embed PDFs inline and blocks the Fullscreen API
+    // on non-video elements — so we open the document in its native viewer.
+    if(IS_IOS){
+      const a=document.createElement('a');
+      a.className='pdfv-ios'; a.href=src; a.target='_blank'; a.rel='noopener';
+      a.innerHTML='<span class="pdfv-ios-ic">\U0001F4C4</span><span>Tap to open the document</span><span class="pdfv-ios-sub">Opens in your PDF viewer</span>';
+      stage.appendChild(a);
+      if(fsBtn){ fsBtn.textContent='Open \u2197'; fsBtn.addEventListener('click',()=>window.open(src,'_blank','noopener')); }
+      return;
     }
-    pdfjsLib.getDocument(src).promise.then(doc=>{pdf=doc;total=doc.numPages;linkService=makeLinkService();if(pl)pl.style.display='none';draw();})
-      .catch(()=>{
-        if(pl){pl.innerHTML=`<div style="text-align:center;padding:30px">
-          <div style="font-size:13px;color:#cfd3da;margin-bottom:12px">Preview needs a live server.</div>
-          <a href="${src}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:var(--accent);color:#fff;padding:10px 20px;border-radius:100px;font-family:'Space Grotesk';font-weight:600;font-size:13px;text-decoration:none">Open the PDF ↗</a></div>`;}
-        if(pv)pv.style.display='none';if(pn)pn.style.display='none';
-      });
-    function draw(){
-      if(rendering||!pdf)return;rendering=true;
-      pdf.getPage(page).then(pg=>{
-        const fs=root.classList.contains('fs');
-        const v0=pg.getViewport({scale:1});
-        let cssW,cssH;
-        if(fs){
-          const availW=stage.clientWidth-32, availH=stage.clientHeight-32;
-          const s=Math.min(availW/v0.width, availH/v0.height);  // contain both axes
-          cssW=v0.width*s; cssH=v0.height*s;
-        } else {
-          const availW=Math.min(stage.clientWidth-20,860);
-          let s=availW/v0.width;
-          const maxH=Math.min(window.innerHeight*0.7,640);
-          if(v0.height*s>maxH){s=maxH/v0.height;}  // clamp portrait height
-          cssW=v0.width*s; cssH=v0.height*s;
-        }
-        const cssScale=cssW/v0.width;
-        const dpr=window.devicePixelRatio||1;
-        const v=pg.getViewport({scale:cssScale*dpr});
-        cv.width=v.width;cv.height=v.height;
-        cv.style.width=cssW+'px';cv.style.height=cssH+'px';
-        wrap.style.width=cssW+'px';wrap.style.height=cssH+'px';
-        pg.render({canvasContext:cv.getContext('2d'),viewport:v}).promise.then(async()=>{
-          // ---- interactive link layer (clickable hyperlinks IN the page) ----
-          annoLayer.innerHTML='';
-          annoLayer.style.width=cssW+'px';annoLayer.style.height=cssH+'px';
-          try{
-            const annos=await pg.getAnnotations({intent:'display'});
-            const lv=pg.getViewport({scale:cssScale});
-            if(window.pdfjsLib&&pdfjsLib.AnnotationLayer&&annos.length){
-              pdfjsLib.AnnotationLayer.render({
-                viewport:lv.clone({dontFlip:true}),
-                div:annoLayer, annotations:annos, page:pg,
-                linkService:linkService, renderForms:false, downloadManager:null
-              });
-            }
-          }catch(e){}
-          rendering=false;if(pgL)pgL.textContent=`${page} / ${total}`;
-          if(pv)pv.disabled=page<=1;if(pn)pn.disabled=page>=total;
-        });
+
+    // Desktop / Android: embed the browser's native PDF viewer.
+    const frame=document.createElement('iframe');
+    frame.className='pdfv-frame';
+    frame.title='PDF document';
+    frame.setAttribute('loading','lazy');
+    frame.src=src+'#toolbar=1&navpanes=0&view=FitH';
+    stage.appendChild(frame);
+
+    if(fsBtn){
+      fsBtn.addEventListener('click',()=>{
+        if(pdfFsElement()){ pdfFsExit(); return; }
+        const req=pdfFsRequest(root);
+        if(req){ Promise.resolve(req.call(root)).catch(()=>window.open(src,'_blank','noopener')); }
+        else { window.open(src,'_blank','noopener'); }  // no Fullscreen API -> new tab
+        SFX.pop();
       });
     }
-    if(pv)pv.addEventListener('click',()=>{if(page>1){page--;draw();SFX.tick();}});
-    if(pn)pn.addEventListener('click',()=>{if(page<total){page++;draw();SFX.tick();}});
-    let fsPlaceholder=null;
-    if(fsBtn)fsBtn.addEventListener('click',()=>{
-      const goingFs=!root.classList.contains('fs');
-      if(goingFs){
-        // detach to <body> so position:fixed is relative to the viewport, not the modal
-        fsPlaceholder=document.createComment('pdfv-fs');
-        root.parentNode.insertBefore(fsPlaceholder,root);
-        document.body.appendChild(root);
-        root.classList.add('fs');
-        fsBtn.textContent='⤡ Exit fullscreen';
-      }else{
-        root.classList.remove('fs');
-        if(fsPlaceholder&&fsPlaceholder.parentNode){fsPlaceholder.parentNode.insertBefore(root,fsPlaceholder);fsPlaceholder.remove();fsPlaceholder=null;}
-        fsBtn.textContent='⤢ Fullscreen';
-      }
-      document.body.style.overflow='hidden';
-      setTimeout(draw,80);SFX.pop();
-    });
-    addEventListener('keydown',e=>{
-      if(e.key==='Escape'&&root.classList.contains('fs')){
-        root.classList.remove('fs');
-        if(fsPlaceholder&&fsPlaceholder.parentNode){fsPlaceholder.parentNode.insertBefore(root,fsPlaceholder);fsPlaceholder.remove();fsPlaceholder=null;}
-        if(fsBtn)fsBtn.textContent='⤢ Fullscreen';
-        setTimeout(draw,80);
-      }
-    });
-    let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(pdf)draw();},150);});
   });
   PDFQUEUE=[];
 }
+// Keep the Fullscreen button labels correct (the browser handles Esc to exit).
+function syncPdfFsLabels(){
+  const cur=pdfFsElement();
+  document.querySelectorAll('.pdfv').forEach(v=>{
+    const b=v.querySelector('.fsBtn'); if(!b||IS_IOS) return;
+    b.textContent=(cur===v)?'\u2921 Exit fullscreen':'\u2922 Fullscreen';
+  });
+}
+document.addEventListener('fullscreenchange',syncPdfFsLabels);
+document.addEventListener('webkitfullscreenchange',syncPdfFsLabels);
+
 function openProject(id){
   const p=P.find(x=>x.id===id);if(!p)return;
   SFX.whoosh();LBLIST=[];let li=0;PDFQUEUE=[];
@@ -253,12 +200,9 @@ function openProject(id){
       PDFQUEUE.push({id:pvid,src:d.src});
       return `<div class="pdfv" id="${pvid}" data-src="${d.src}">
         <div class="pdfv-head"><div class="di">📄</div><div class="dn">${d.cap}</div></div>
-        <div class="pdfv-stage"><span class="pl">Loading document…</span>
-          <button class="pdfv-nav pv" disabled aria-label="Previous page">‹</button>
-          <button class="pdfv-nav pn" disabled aria-label="Next page">›</button>
-        </div>
+        <div class="pdfv-stage"></div>
         <div class="pdfv-bar">
-          <span class="pg">— / —</span>
+          <span class="pg">PDF document</span>
           <div class="pacts">
             <button class="pbtn fsBtn">⤢ Fullscreen</button>
             <a class="pbtn" href="${d.src}" target="_blank" rel="noopener">Open ↗</a>
@@ -283,10 +227,10 @@ function openProject(id){
   pm.classList.add('open');document.body.style.overflow='hidden';pm.scrollTop=0;
 }
 
-function closeProject(){SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';}
+function closeProject(){if(pdfFsElement())pdfFsExit();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';}
 document.getElementById('pmclose').addEventListener('click',closeProject);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){const fs=document.querySelector('.pdfv.fs');if(fs){fs.classList.remove('fs');const fb=fs.querySelector('.fsBtn');if(fb)fb.textContent='⤢ Fullscreen';return;}closeProject();closeLB();}
+  if(e.key==='Escape'){if(pdfFsElement())return;closeProject();closeLB();}
   if(lb.classList.contains('open')){if(e.key==='ArrowRight')lbStep(1);if(e.key==='ArrowLeft')lbStep(-1);}
 });
 
