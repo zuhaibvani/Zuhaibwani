@@ -188,15 +188,32 @@ function renderPDFs(){
     }
     if(pv)pv.addEventListener('click',()=>{if(page>1){page--;draw();SFX.tick();}});
     if(pn)pn.addEventListener('click',()=>{if(page<total){page++;draw();SFX.tick();}});
+    let fsPlaceholder=null;
     if(fsBtn)fsBtn.addEventListener('click',()=>{
-      root.classList.toggle('fs');
-      const on=root.classList.contains('fs');
-      fsBtn.textContent=on?'⤡ Exit fullscreen':'⤢ Fullscreen';
+      const goingFs=!root.classList.contains('fs');
+      if(goingFs){
+        // detach to <body> so position:fixed is relative to the viewport, not the modal
+        fsPlaceholder=document.createComment('pdfv-fs');
+        root.parentNode.insertBefore(fsPlaceholder,root);
+        document.body.appendChild(root);
+        root.classList.add('fs');
+        fsBtn.textContent='⤡ Exit fullscreen';
+      }else{
+        root.classList.remove('fs');
+        if(fsPlaceholder&&fsPlaceholder.parentNode){fsPlaceholder.parentNode.insertBefore(root,fsPlaceholder);fsPlaceholder.remove();fsPlaceholder=null;}
+        fsBtn.textContent='⤢ Fullscreen';
+      }
       document.body.style.overflow='hidden';
       setTimeout(draw,80);SFX.pop();
     });
-    // Esc exits fullscreen; redraw on resize/orientation change
-    addEventListener('keydown',e=>{if(e.key==='Escape'&&root.classList.contains('fs')){root.classList.remove('fs');if(fsBtn)fsBtn.textContent='⤢ Fullscreen';setTimeout(draw,80);}});
+    addEventListener('keydown',e=>{
+      if(e.key==='Escape'&&root.classList.contains('fs')){
+        root.classList.remove('fs');
+        if(fsPlaceholder&&fsPlaceholder.parentNode){fsPlaceholder.parentNode.insertBefore(root,fsPlaceholder);fsPlaceholder.remove();fsPlaceholder=null;}
+        if(fsBtn)fsBtn.textContent='⤢ Fullscreen';
+        setTimeout(draw,80);
+      }
+    });
     let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(pdf)draw();},150);});
   });
   PDFQUEUE=[];
