@@ -99,71 +99,109 @@ document.querySelectorAll('.fbtn').forEach(b=>b.addEventListener('click',()=>{
 const pm=document.getElementById('pm'),pmInner=document.getElementById('pminner');
 let LBLIST=[],LBIDX=0;
 function mediaHTML(m,idx){
-  if(m.type==='yt')return `<iframe src="${m.src}?rel=0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy" title="${m.cap||''}"></iframe>`;
+  if(m.type==='yt'){const vid=(m.src.split('/embed/')[1]||'').split(/[?&]/)[0];return `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" title="${m.cap||'Showreel'}"></iframe>`;}
   if(m.type==='video'){return `<video src="${m.src}" ${m.poster?`poster="${m.poster}"`:''} controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false" draggable="false" playsinline preload="metadata"></video>`;}
-  if(m.type==='sketchfab')return `<iframe class="sk" src="${m.src}" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" title="Interactive 3D model"></iframe>`;
+  if(m.type==='sketchfab'){const j=m.src.includes('?')?'&':'?';return `<iframe class="sk" src="${m.src}${j}ui_infos=0&ui_inspector=0&ui_watermark_link=0&ui_help=0&ui_settings=0&ui_vr=0&ui_ar=0&dnt=1" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" title="Interactive 3D model"></iframe>`;}
   if(m.type==='pdf')return `<a href="${m.src}" target="_blank" rel="noopener" style="display:block;position:relative"><img loading="lazy" src="${m.poster||'assets/img/presentation-1.jpg'}" alt="Interactive PDF preview"/><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,12,.45);color:#fff;font-family:'Space Grotesk';font-weight:600;font-size:15px;gap:9px">Open interactive PDF ↗</span></a>`;
   return `<img loading="lazy" src="${m.src}" alt="${m.cap||''}" data-lb="${idx}"/>`;
 }
 let PDFQUEUE=[];
-// ---- Native PDF embedding -------------------------------------------------
-// The browser's built-in PDF viewer gives correct page sizing, scrolling,
-// zoom, text selection and clickable links for free. The Fullscreen API then
-// gives true OS-level fullscreen (like Acrobat). No canvas, no pdf.js needed.
-const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+/* ============ CUSTOM PDF VIEWER (PDF.js, fully controlled) ============
+   Pages render to <canvas>, so there are NO browser download / print / save
+   controls. Acrobat-style continuous scroll with Fit-Width / Fit-Page, page
+   flipping via the on-screen arrows and the keyboard (Arrows in Fit-Page,
+   PageUp/Down, Home/End), and a persistent copyright stamp. A browser must
+   fetch a file to display it, so this deters casual lifting; it cannot make a
+   public file un-saveable. */
 function pdfFsRequest(el){ return el.requestFullscreen || el.webkitRequestFullscreen; }
 function pdfFsElement(){ return document.fullscreenElement || document.webkitFullscreenElement; }
 function pdfFsExit(){ (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document); }
+const PDF_PAD=16;
 function renderPDFs(){
+  if(!window.pdfjsLib){ PDFQUEUE.forEach(({id})=>{const r=document.getElementById(id);const sc=r&&r.querySelector('.pdfv-scroll');if(sc)sc.innerHTML='<div class="pdfv-err">Viewer failed to load.</div>';}); PDFQUEUE=[]; return; }
+  try{ pdfjsLib.GlobalWorkerOptions.workerSrc='assets/js/vendor/pdf.worker.min.js'; }catch(e){}
   PDFQUEUE.forEach(({id,src})=>{
     const root=document.getElementById(id); if(!root) return;
-    const stage=root.querySelector('.pdfv-stage');
-    const fsBtn=root.querySelector('.fsBtn');
-    if(!stage) return;
-    stage.innerHTML='';
+    const scroll=root.querySelector('.pdfv-scroll');
+    const fsBtn=root.querySelector('.fsBtn'), fitBtn=root.querySelector('.pfit');
+    const prevBtn=root.querySelector('.pprev'), nextBtn=root.querySelector('.pnext');
+    const curEl=root.querySelector('.pcur'), totEl=root.querySelector('.ptot');
+    if(!scroll) return;
+    let doc=null, fit='width', pages=[], rendered=new Set(), cur=1, total=0, baseVp=null;
 
-    // iOS Safari can't reliably embed PDFs inline and blocks the Fullscreen API
-    // on non-video elements — so we open the document in its native viewer.
-    if(IS_IOS){
-      const a=document.createElement('a');
-      a.className='pdfv-ios'; a.href=src; a.target='_blank'; a.rel='noopener';
-      a.innerHTML='<span class="pdfv-ios-ic">\U0001F4C4</span><span>Tap to open the document</span><span class="pdfv-ios-sub">Opens in your PDF viewer</span>';
-      stage.appendChild(a);
-      if(fsBtn){ fsBtn.textContent='Open \u2197'; fsBtn.addEventListener('click',()=>window.open(src,'_blank','noopener')); }
-      return;
+    function scaleFor(){
+      const w=scroll.clientWidth-PDF_PAD*2;
+      if(fit==='width') return w/baseVp.width;
+      const h=scroll.clientHeight-PDF_PAD*2;
+      return Math.min(w/baseVp.width, h/baseVp.height);
     }
+    function renderPage(n){
+      if(rendered.has(n)||!doc) return; rendered.add(n);
+      doc.getPage(n).then(page=>{
+        const vp=page.getViewport({scale:1});
+        const sc=scaleFor(), dpr=window.devicePixelRatio||1;
+        const cssW=vp.width*sc, cssH=vp.height*sc;
+        const rv=page.getViewport({scale:sc*dpr});
+        const wrap=pages[n-1]; if(!wrap) return;
+        const cv=document.createElement('canvas');
+        cv.width=rv.width; cv.height=rv.height; cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
+        wrap.style.height='auto'; wrap.innerHTML=''; wrap.appendChild(cv);
+        page.render({canvasContext:cv.getContext('2d',{alpha:false}),viewport:rv});
+      }).catch(()=>{ rendered.delete(n); });
+    }
+    function relayout(){
+      if(!baseVp||!root.isConnected) return;
+      const cssH=baseVp.height*scaleFor();
+      pages.forEach(el=>{ el.innerHTML=''; el.style.height=cssH+'px'; });
+      rendered.clear(); io.disconnect(); pages.forEach(el=>io.observe(el));
+    }
+    const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'250px 0px'});
+    root._relayout=relayout;
 
-    // Desktop / Android: embed the browser's native PDF viewer.
-    const frame=document.createElement('iframe');
-    frame.className='pdfv-frame';
-    frame.title='PDF document';
-    frame.setAttribute('loading','lazy');
-    frame.src=src+'#toolbar=1&navpanes=0&view=FitH';
-    stage.appendChild(frame);
+    pdfjsLib.getDocument(src).promise.then(d=>{ doc=d; total=d.numPages; if(totEl)totEl.textContent=total; return d.getPage(1); })
+      .then(page=>{
+        baseVp=page.getViewport({scale:1});
+        const cssH=baseVp.height*scaleFor();
+        for(let n=1;n<=total;n++){ const el=document.createElement('div'); el.className='pdfv-page'; el.dataset.pg=n; el.style.height=cssH+'px'; scroll.appendChild(el); pages.push(el); io.observe(el); }
+      })
+      .catch(()=>{ scroll.innerHTML='<div class="pdfv-err">Unable to display this document.</div>'; });
+
+    let st; scroll.addEventListener('scroll',()=>{ clearTimeout(st); st=setTimeout(()=>{
+      const mid=scroll.scrollTop+scroll.clientHeight/2; let acc=0,idx=1;
+      for(let i=0;i<pages.length;i++){ acc+=pages[i].offsetHeight+16; idx=i+1; if(mid<=acc) break; }
+      cur=idx; if(curEl)curEl.textContent=cur;
+    },70); });
+
+    function goTo(n){ n=Math.max(1,Math.min(total,n)); const el=pages[n-1]; if(el) scroll.scrollTo({top:el.offsetTop-PDF_PAD,behavior:'smooth'}); cur=n; if(curEl)curEl.textContent=n; }
+    if(prevBtn)prevBtn.addEventListener('click',()=>{goTo(cur-1);SFX.tick();});
+    if(nextBtn)nextBtn.addEventListener('click',()=>{goTo(cur+1);SFX.tick();});
+    if(fitBtn){ const lbl=()=>fitBtn.textContent=(fit==='width'?'Fit page':'Fit width'); lbl(); fitBtn.addEventListener('click',()=>{ fit=(fit==='width'?'page':'width'); lbl(); relayout(); SFX.pop(); }); }
+
+    scroll.setAttribute('tabindex','0');
+    scroll.addEventListener('keydown',e=>{
+      if(e.key==='PageDown'||(e.key==='ArrowDown'&&fit==='page')){e.preventDefault();goTo(cur+1);}
+      else if(e.key==='PageUp'||(e.key==='ArrowUp'&&fit==='page')){e.preventDefault();goTo(cur-1);}
+      else if(e.key==='Home'){e.preventDefault();goTo(1);}
+      else if(e.key==='End'){e.preventDefault();goTo(total);}
+    });
+    scroll.addEventListener('mousedown',()=>{ try{scroll.focus({preventScroll:true});}catch(_){scroll.focus();} });
 
     if(fsBtn){
-      fsBtn.addEventListener('click',()=>{
-        if(pdfFsElement()){ pdfFsExit(); return; }
-        const req=pdfFsRequest(root);
-        if(req){ Promise.resolve(req.call(root)).catch(()=>window.open(src,'_blank','noopener')); }
-        else { window.open(src,'_blank','noopener'); }  // no Fullscreen API -> new tab
-        SFX.pop();
-      });
+      if(!(document.fullscreenEnabled||document.webkitFullscreenEnabled)){ fsBtn.style.display='none'; }
+      else fsBtn.addEventListener('click',()=>{ if(pdfFsElement())pdfFsExit(); else { const r=pdfFsRequest(root); if(r)Promise.resolve(r.call(root)).catch(()=>{});} SFX.pop(); });
     }
+    let rz; addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(relayout,160);});
   });
   PDFQUEUE=[];
 }
-// Keep the Fullscreen button labels correct (the browser handles Esc to exit).
-function syncPdfFsLabels(){
+function onPdfFsChange(){
   const cur=pdfFsElement();
-  document.querySelectorAll('.pdfv').forEach(v=>{
-    const b=v.querySelector('.fsBtn'); if(!b||IS_IOS) return;
-    b.textContent=(cur===v)?'\u2921 Exit fullscreen':'\u2922 Fullscreen';
-  });
+  document.querySelectorAll('.pdfv').forEach(v=>{ const b=v.querySelector('.fsBtn'); if(b&&b.style.display!=='none') b.textContent=(cur===v)?'⤡ Exit fullscreen':'⤢ Fullscreen'; });
+  if(cur&&cur._relayout) setTimeout(cur._relayout,80);
+  else document.querySelectorAll('.pdfv').forEach(v=>{ if(v._relayout) setTimeout(v._relayout,80); });
 }
-document.addEventListener('fullscreenchange',syncPdfFsLabels);
-document.addEventListener('webkitfullscreenchange',syncPdfFsLabels);
+document.addEventListener('fullscreenchange',onPdfFsChange);
+document.addEventListener('webkitfullscreenchange',onPdfFsChange);
 
 function openProject(id){
   const p=P.find(x=>x.id===id);if(!p)return;
@@ -199,13 +237,17 @@ function openProject(id){
       const pvid='pdfv_'+i;
       PDFQUEUE.push({id:pvid,src:d.src});
       return `<div class="pdfv" id="${pvid}" data-src="${d.src}">
-        <div class="pdfv-head"><div class="di">📄</div><div class="dn">${d.cap}</div></div>
-        <div class="pdfv-stage"></div>
+        <div class="pdfv-head"><div class="di">📄</div><div class="dn">${d.cap}</div><div class="pdfv-copyright">© Zuhaib Wani</div></div>
+        <div class="pdfv-stage"><div class="pdfv-scroll"></div></div>
         <div class="pdfv-bar">
-          <span class="pg">PDF document</span>
+          <div class="pdfv-pagectl">
+            <button class="pbtn pprev" aria-label="Previous page">‹</button>
+            <span class="pg"><b class="pcur">1</b> / <span class="ptot">–</span></span>
+            <button class="pbtn pnext" aria-label="Next page">›</button>
+          </div>
           <div class="pacts">
+            <button class="pbtn pfit">Fit page</button>
             <button class="pbtn fsBtn">⤢ Fullscreen</button>
-            <a class="pbtn" href="${d.src}" target="_blank" rel="noopener">Open ↗</a>
           </div>
         </div>
       </div>`;
@@ -253,23 +295,30 @@ function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0])
 function recCard(r,clamp){return `<div class="rec ${clamp?'clamp':''}"><div class="quote">"</div><p>${r.t}</p>${clamp?'<div class="more">Tap to read full ↓</div>':''}<div class="who"><div class="ava">${initials(r.n)}</div><div><div class="nm">${r.n}</div><div class="ti">${r.r}</div></div>${r.ig?`<a class="ig" href="https://www.instagram.com/${r.ig}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${r.ig}</a>`:''}</div></div>`;}
 const liEl=document.getElementById('recs-li');
 liEl.innerHTML=RECS_LI.map(r=>recCard(r,true)).join('')+RECS_LI.map(r=>recCard(r,true)).join('');
-// Only keep the "read full" prompt + expand behaviour where the text is genuinely clamped.
-requestAnimationFrame(()=>{
-  liEl.querySelectorAll('.rec').forEach(c=>{
-    const p=c.querySelector('p');const more=c.querySelector('.more');
-    const overflowing=p && p.scrollHeight-p.clientHeight>4;
-    if(!overflowing){ if(more)more.remove(); c.classList.remove('clamp'); }
-    else {
-      c.style.cursor='pointer';
+// Only show the "read full" prompt where the text is genuinely clamped.
+// Measured AFTER web fonts load — before that, metrics are wrong and short
+// quotes wrongly keep a useless "tap to read full".
+function refreshRecClamps(){
+  liEl.querySelectorAll('.rec.clamp').forEach(c=>{
+    const p=c.querySelector('p'); if(!p) return;
+    const overflowing=p.scrollHeight-p.clientHeight>6;
+    if(!overflowing){
+      const m=c.querySelector('.more'); if(m)m.remove();
+      c.classList.remove('clamp'); c.style.cursor='';
+    } else if(!c._wired){
+      c._wired=true; c.style.cursor='pointer';
       c.addEventListener('click',()=>{
         c.classList.toggle('full');
         document.getElementById('railWrap').classList.toggle('paused',c.classList.contains('full'));
-        if(more)more.style.display=c.classList.contains('full')?'none':'block';
+        const m=c.querySelector('.more'); if(m)m.style.display=c.classList.contains('full')?'none':'block';
         SFX.pop();
       });
     }
   });
-});
+}
+(document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(refreshRecClamps);
+setTimeout(refreshRecClamps,700);
+addEventListener('resize',()=>{clearTimeout(window.__recRz);window.__recRz=setTimeout(refreshRecClamps,200);});
 document.getElementById('recs-cl').innerHTML=RECS_CL.map(r=>recCard(r,false)).join('');
 document.querySelectorAll('#recs-cl .rec').forEach(card=>{
   let raf;card.addEventListener('mousemove',e=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
@@ -319,8 +368,9 @@ toTop.addEventListener('click',()=>{scrollTo({top:0,behavior:'smooth'});SFX.pop(
 const nav=document.getElementById('nav');
 addEventListener('scroll',()=>{nav.classList.toggle('scrolled',scrollY>40);});
 const burger=document.getElementById('burger'),nl=document.getElementById('navlinks');
-burger.addEventListener('click',()=>{burger.classList.toggle('open');nl.classList.toggle('open');});
-nl.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{burger.classList.remove('open');nl.classList.remove('open');}));
+function setMenu(open){burger.classList.toggle('open',open);nl.classList.toggle('open',open);document.body.classList.toggle('menu-open',open);}
+burger.addEventListener('click',()=>setMenu(!nl.classList.contains('open')));
+nl.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>setMenu(false)));
 const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.1});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 (function(){const s=[...document.querySelectorAll('#heroBg .slide')];let i=0;setInterval(()=>{s[i].classList.remove('on');i=(i+1)%s.length;s[i].classList.add('on');},6500);})();
