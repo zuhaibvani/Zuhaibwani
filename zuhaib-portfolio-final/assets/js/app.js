@@ -101,7 +101,7 @@ let LBLIST=[],LBIDX=0;
 function mediaHTML(m,idx){
   if(m.type==='yt'){const vid=(m.src.split('/embed/')[1]||'').split(/[?&]/)[0];return `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" title="${m.cap||'Showreel'}"></iframe>`;}
   if(m.type==='video'){return `<video src="${m.src}" ${m.poster?`poster="${m.poster}"`:''} controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false" draggable="false" playsinline preload="metadata"></video>`;}
-  if(m.type==='sketchfab'){const j=m.src.includes('?')?'&':'?';return `<iframe class="sk" src="${m.src}${j}ui_infos=0&ui_inspector=0&ui_watermark_link=0&ui_help=0&ui_settings=0&ui_vr=0&ui_ar=0&dnt=1" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" title="Interactive 3D model"></iframe>`;}
+  if(m.type==='sketchfab'){const j=m.src.includes('?')?'&':'?';return `<iframe class="sk" src="${m.src}${j}ui_infos=0&ui_inspector=0&ui_watermark_link=0&ui_help=0&ui_settings=0&ui_vr=0&ui_ar=0&dnt=1" sandbox="allow-scripts allow-same-origin allow-popups" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" title="Interactive 3D model"></iframe>`;}
   if(m.type==='pdf')return `<a href="${m.src}" target="_blank" rel="noopener noreferrer" style="display:block;position:relative"><img loading="lazy" src="${m.poster||'assets/img/presentation-1.jpg'}" alt="Interactive PDF preview"/><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,12,.45);color:#fff;font-family:'Space Grotesk';font-weight:600;font-size:15px;gap:9px">Open interactive PDF ↗</span></a>`;
   return `<img loading="lazy" src="${m.src}" alt="${m.cap||''}" data-lb="${idx}"/>`;
 }
@@ -612,12 +612,12 @@ const AVAIL = {
   pickLine(r,d,f){
     return ({
       R:'Open to remote roles, worldwide',
-      D:'Open to full-time — Delhi NCR',
+      D:'Open to full-time, Delhi NCR',
       RD:'Open to full-time — remote or Delhi NCR',
       F:'Open for freelance',
-      RF:'Open for freelance and remote roles',
-      DF:'Open for freelance and full-time — Delhi NCR',
-      RDF:'Open for freelance and full-time — remote or Delhi NCR',
+      RF:'Open for freelance + remote roles',
+      DF:'Open for freelance + full-time, Delhi NCR',
+      RDF:'Open for freelance + full-time roles',
       '':null
     })[(r?'R':'')+(d?'D':'')+(f?'F':'')];
   },

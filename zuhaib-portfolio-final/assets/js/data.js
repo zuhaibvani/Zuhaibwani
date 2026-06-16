@@ -37,7 +37,7 @@ const P=[
  role:'Real-Time Environment Designer',type:'Client project',
  tools:['Unreal Engine 5','Blueprint','Lumen','Blender'],
  deliver:['Interactive environment','Blueprint systems','Lighting design','In-engine post'],
- hero:{type:'video',src:'https://github.com/zuhaibvani/Zuhaibwani/releases/download/media/Gameplay.mp4',poster:'assets/img/ue5-environment.jpg'},
+ hero:{type:'video',src:'assets/video/ue5-gameplay.mp4',poster:'assets/img/ue5-environment.jpg'},
  desc:['<strong>A place, not a picture.</strong> Almost all architectural and product visualization is pre-rendered — a film or a set of stills that you watch from the outside. This project rejected that. The brief was to build an environment a person actually steps into and moves through in real time, with interactive elements and lightweight game logic, running live in Unreal Engine 5.',
  '<strong>Why that distinction is the whole point.</strong> A film shows the client one fixed path. A real-time space lets them walk it themselves — change viewpoint, approach what interests them, trigger interactions, and form their own impression. For a client deciding on a space or an experience, that shift from spectator to participant changes how convinced they feel. The hard part is delivering cinematic quality while staying inside the performance budget a real-time engine demands.',
  '<strong>Environment first.</strong> Every piece of geometry was modelled and textured, a reusable material library was established, and the layout was designed around movement — sightlines, walking paths, and points of interest — not just around how a hero shot would frame up. A space that looks good but feels confusing to navigate has failed the brief.',
