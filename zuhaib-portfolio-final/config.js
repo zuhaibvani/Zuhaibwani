@@ -1,8 +1,14 @@
 /* ============================================================
-   SITE CONFIG — edit availabilityMode to update availability.
-   Values: 'fulltime' | 'freelance' | 'both' | 'none'
-   After changing: re-upload to Vercel to go live.
+   SITE CONFIG — toggle availability, then re-upload to Vercel.
+   true = ON (advertised on site) · false = OFF
+
+   You can also edit these live: load the site, type "zwa" (or add
+   #zwadmin to the URL), flip switches, and click "Download config.js".
    ============================================================ */
 window.SITE_CONFIG = {
-  availabilityMode: 'both'
+  availability: {
+    remote: true,     // Open to remote roles, worldwide
+    delhi: true,      // Open to full-time, Delhi NCR
+    freelance: true   // Open for freelance
+  }
 };

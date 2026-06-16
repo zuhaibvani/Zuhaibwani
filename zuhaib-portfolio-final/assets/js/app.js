@@ -102,7 +102,7 @@ function mediaHTML(m,idx){
   if(m.type==='yt'){const vid=(m.src.split('/embed/')[1]||'').split(/[?&]/)[0];return `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&modestbranding=1&iv_load_policy=3&playsinline=1" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen loading="lazy" title="${m.cap||'Showreel'}"></iframe>`;}
   if(m.type==='video'){return `<video src="${m.src}" ${m.poster?`poster="${m.poster}"`:''} controls controlsList="nodownload noremoteplayback" disablePictureInPicture oncontextmenu="return false" draggable="false" playsinline preload="metadata"></video>`;}
   if(m.type==='sketchfab'){const j=m.src.includes('?')?'&':'?';return `<iframe class="sk" src="${m.src}${j}ui_infos=0&ui_inspector=0&ui_watermark_link=0&ui_help=0&ui_settings=0&ui_vr=0&ui_ar=0&dnt=1" allow="autoplay; fullscreen; xr-spatial-tracking" allowfullscreen loading="lazy" title="Interactive 3D model"></iframe>`;}
-  if(m.type==='pdf')return `<a href="${m.src}" target="_blank" rel="noopener" style="display:block;position:relative"><img loading="lazy" src="${m.poster||'assets/img/presentation-1.jpg'}" alt="Interactive PDF preview"/><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,12,.45);color:#fff;font-family:'Space Grotesk';font-weight:600;font-size:15px;gap:9px">Open interactive PDF ↗</span></a>`;
+  if(m.type==='pdf')return `<a href="${m.src}" target="_blank" rel="noopener noreferrer" style="display:block;position:relative"><img loading="lazy" src="${m.poster||'assets/img/presentation-1.jpg'}" alt="Interactive PDF preview"/><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,9,12,.45);color:#fff;font-family:'Space Grotesk';font-weight:600;font-size:15px;gap:9px">Open interactive PDF ↗</span></a>`;
   return `<img loading="lazy" src="${m.src}" alt="${m.cap||''}" data-lb="${idx}"/>`;
 }
 let PDFQUEUE=[];
@@ -163,6 +163,7 @@ function renderPDFs(){
         baseVp=page.getViewport({scale:1});
         const cssH=baseVp.height*scaleFor();
         for(let n=1;n<=total;n++){ const el=document.createElement('div'); el.className='pdfv-page'; el.dataset.pg=n; el.style.height=cssH+'px'; scroll.appendChild(el); pages.push(el); io.observe(el); }
+        try{ if(root.closest('.pm')) scroll.focus({preventScroll:true}); }catch(_){}
       })
       .catch(()=>{ scroll.innerHTML='<div class="pdfv-err">Unable to display this document.</div>'; });
 
@@ -179,8 +180,8 @@ function renderPDFs(){
 
     scroll.setAttribute('tabindex','0');
     scroll.addEventListener('keydown',e=>{
-      if(e.key==='PageDown'||(e.key==='ArrowDown'&&fit==='page')){e.preventDefault();goTo(cur+1);}
-      else if(e.key==='PageUp'||(e.key==='ArrowUp'&&fit==='page')){e.preventDefault();goTo(cur-1);}
+      if(e.key==='ArrowRight'||e.key==='PageDown'||(e.key==='ArrowDown'&&fit==='page')){e.preventDefault();goTo(cur+1);}
+      else if(e.key==='ArrowLeft'||e.key==='PageUp'||(e.key==='ArrowUp'&&fit==='page')){e.preventDefault();goTo(cur-1);}
       else if(e.key==='Home'){e.preventDefault();goTo(1);}
       else if(e.key==='End'){e.preventDefault();goTo(total);}
     });
@@ -266,13 +267,13 @@ function openProject(id){
    ${heroIsPdf?'':docsHTML}
    ${galleryHTML}`;
   renderPDFs();
-  pm.classList.add('open');document.body.style.overflow='hidden';pm.scrollTop=0;
+  pm.classList.add('open');document.body.style.overflow='hidden';document.body.classList.add('pm-open');pm.scrollTop=0;
 }
 
-function closeProject(){if(pdfFsElement())pdfFsExit();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';}
+function closeProject(){if(pdfFsElement())pdfFsExit();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';document.body.classList.remove('pm-open');}
 document.getElementById('pmclose').addEventListener('click',closeProject);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){if(pdfFsElement())return;closeProject();closeLB();}
+  if(e.key==='Escape'){if(pdfFsElement()){e.preventDefault();pdfFsExit();return;}closeProject();closeLB();}
   if(lb.classList.contains('open')){if(e.key==='ArrowRight')lbStep(1);if(e.key==='ArrowLeft')lbStep(-1);}
 });
 
@@ -292,33 +293,46 @@ lb.addEventListener('click',e=>{if(e.target===lb)closeLB();});
 
 /* ============ RECS ============ */
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
-function recCard(r,clamp){return `<div class="rec ${clamp?'clamp':''}"><div class="quote">"</div><p>${r.t}</p>${clamp?'<div class="more">Tap to read full ↓</div>':''}<div class="who"><div class="ava">${initials(r.n)}</div><div><div class="nm">${r.n}</div><div class="ti">${r.r}</div></div>${r.ig?`<a class="ig" href="https://www.instagram.com/${r.ig}" target="_blank" rel="noopener" onclick="event.stopPropagation()">@${r.ig}</a>`:''}</div></div>`;}
+function recCard(r,clamp){return `<div class="rec ${clamp?'clamp':''}"><div class="quote">"</div><p>${r.t}</p>${clamp?'<div class="more">Tap to read full ↓</div>':''}<div class="who"><div class="ava">${initials(r.n)}</div><div><div class="nm">${r.n}</div><div class="ti">${r.r}</div></div>${r.ig?`<a class="ig" href="https://www.instagram.com/${r.ig}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">@${r.ig}</a>`:''}</div></div>`;}
 const liEl=document.getElementById('recs-li');
 liEl.innerHTML=RECS_LI.map(r=>recCard(r,true)).join('')+RECS_LI.map(r=>recCard(r,true)).join('');
 // Only show the "read full" prompt where the text is genuinely clamped.
 // Measured AFTER web fonts load — before that, metrics are wrong and short
 // quotes wrongly keep a useless "tap to read full".
 function refreshRecClamps(){
-  liEl.querySelectorAll('.rec.clamp').forEach(c=>{
+  liEl.querySelectorAll('.rec').forEach(c=>{
+    if(c.classList.contains('full')) return;           // user-expanded card: leave it alone
+    c.classList.add('clamp');                           // keep clamping ON so overflow stays measurable
     const p=c.querySelector('p'); if(!p) return;
     const overflowing=p.scrollHeight-p.clientHeight>6;
-    if(!overflowing){
-      const m=c.querySelector('.more'); if(m)m.remove();
-      c.classList.remove('clamp'); c.style.cursor='';
-    } else if(!c._wired){
-      c._wired=true; c.style.cursor='pointer';
-      c.addEventListener('click',()=>{
-        c.classList.toggle('full');
-        document.getElementById('railWrap').classList.toggle('paused',c.classList.contains('full'));
-        const m=c.querySelector('.more'); if(m)m.style.display=c.classList.contains('full')?'none':'block';
-        SFX.pop();
-      });
+    let m=c.querySelector('.more');
+    if(overflowing){
+      if(!m){ m=document.createElement('div'); m.className='more'; m.textContent='Tap to read full ↓'; c.insertBefore(m,c.querySelector('.who')); }
+      else { m.style.display='block'; }
+      c.style.cursor='pointer';
+      if(!c._wired){
+        c._wired=true;
+        c.addEventListener('click',()=>{
+          c.classList.toggle('full');
+          document.getElementById('railWrap').classList.toggle('paused',c.classList.contains('full'));
+          const mm=c.querySelector('.more'); if(mm)mm.style.display=c.classList.contains('full')?'none':'block';
+          SFX.pop();
+        });
+      }
+    } else {
+      if(m) m.remove();                                  // fits → no prompt, regardless of prior state
+      c.style.cursor='';
     }
   });
 }
 (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(refreshRecClamps);
 setTimeout(refreshRecClamps,700);
 addEventListener('resize',()=>{clearTimeout(window.__recRz);window.__recRz=setTimeout(refreshRecClamps,200);});
+if('ResizeObserver' in window){
+  const _ro=new ResizeObserver(()=>{clearTimeout(window.__recRz);window.__recRz=setTimeout(refreshRecClamps,150);});
+  _ro.observe(liEl);
+  const _rw=document.getElementById('railWrap'); if(_rw)_ro.observe(_rw);
+}
 document.getElementById('recs-cl').innerHTML=RECS_CL.map(r=>recCard(r,false)).join('');
 document.querySelectorAll('#recs-cl .rec').forEach(card=>{
   let raf;card.addEventListener('mousemove',e=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{
@@ -434,8 +448,8 @@ const Z={
 
   // --- CV ---
   if(rx(/\bcv\b|resume|curriculum/)){const cv=window.__cvHref||'assets/docs/Zuhaib_Wani_CV_Neutral.pdf';return this.say(this.pick([
-    `Of course — here's his CV: <a href="${cv}" download target="_blank" rel="noopener">📄 Download Zuhaib's CV</a>. Two pages, no padding.`,
-    `Grab it here: <a href="${cv}" download target="_blank" rel="noopener">📄 Zuhaib's CV (PDF)</a>. Everything that matters, nothing that doesn't.`]));}
+    `Of course — here's his CV: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Download Zuhaib's CV</a>. Two pages, no padding.`,
+    `Grab it here: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Zuhaib's CV (PDF)</a>. Everything that matters, nothing that doesn't.`]));}
 
   // --- TEAMS / PEOPLE / COLLABORATION (the question that failed before) ---
   if(rx(/team|people|collaborat|cultures?|colleagues?|stakeholder|cross.?function|department/)&&!has('software','tool'))
@@ -554,84 +568,114 @@ document.getElementById('zForm').addEventListener('submit',async e=>{
     return s;
   }
   const isSpam=spamScore(msg)>=3;
+  // honeypot — bots fill hidden field; drop silently (show success so they don't retry)
+  if(f.botcheck && f.botcheck.value){ const ok=document.getElementById('zOk'); ok.textContent='✓ Sent! Zuhaib will read it soon.'; ok.style.display='block'; f.reset(); return; }
   btn.disabled=true;btn.textContent='Sending…';
   const subject=isSpam?'[Folio-SPAM] Possible spam from website':'[Folio] New website message';
   try{
-    const r=await fetch('https://formsubmit.co/ajax/Pixocad@gmail.com',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
-      body:JSON.stringify({name:f.name.value||'Anonymous',email:f.email.value||'not given',message:msg,
-        _subject:subject,_template:'table',_captcha:'false',
-        source:'portfolio-website',flagged:isSpam?'likely-spam':'clean'})});
-    if(!r.ok)throw 0;
-    document.getElementById('zOk').style.display='block';f.reset();btn.textContent='Send message';btn.disabled=false;SFX.chirp();
-  }catch(_){btn.disabled=false;btn.textContent='Send message';
-    location.href=`mailto:Pixocad@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`;}
+    const r=await fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify({
+        access_key:'3717e44f-c308-4552-8584-d5ccff34ea92',
+        subject:subject, from_name:'Portfolio Website',
+        name:f.name.value||'Anonymous',
+        email:f.email.value||'not-given@portfolio.site',
+        message:msg, flagged:isSpam?'likely-spam':'clean'})});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok || data.success===false) throw 0;
+    const ok=document.getElementById('zOk'); ok.textContent='✓ Sent! Zuhaib will read it soon.'; ok.style.display='block';
+    f.reset();btn.textContent='Send message';btn.disabled=false;SFX.chirp();
+  }catch(_){
+    btn.disabled=false;btn.textContent='Try again';
+    const ok=document.getElementById('zOk'); ok.textContent='Couldn’t send just now — please email Zuhaibmushtaq95@gmail.com';ok.style.color='#ff7a5c';ok.style.display='block';
+  }
 });
 
 /* ============ AVAILABILITY ENGINE ============ */
 const AVAIL = {
-  // CV per mode
-  cv:{
-    fulltime:'assets/docs/Zuhaib_Wani_CV_Fulltime.pdf',
+  files:{
+    remote:'assets/docs/Zuhaib_Wani_CV_Remote.pdf',
+    delhi:'assets/docs/Zuhaib_Wani_CV_DelhiNCR.pdf',
+    combined:'assets/docs/Zuhaib_Wani_CV_Combined.pdf',
     freelance:'assets/docs/Zuhaib_Wani_CV_Freelance.pdf',
-    both:'assets/docs/Zuhaib_Wani_CV_Fulltime.pdf',
-    none:'assets/docs/Zuhaib_Wani_CV_Neutral.pdf'
+    neutral:'assets/docs/Zuhaib_Wani_CV_Neutral.pdf'
   },
-  // banner text per mode (null = hidden)
-  line:{
-    fulltime:'Open to full-time — Delhi NCR / Remote',
-    freelance:'Open for freelance',
-    both:'Open to full-time or freelance',
-    none:null
+  norm(cfg){ cfg=cfg||{}; return {remote:!!cfg.remote, delhi:!!cfg.delhi, freelance:!!cfg.freelance}; },
+  // CV: full-time states win; freelance only decides the CV when it is the only thing on
+  pickCV(r,d,f){
+    if(r&&d) return this.files.combined;
+    if(r)    return this.files.remote;
+    if(d)    return this.files.delhi;
+    if(f)    return this.files.freelance;
+    return this.files.neutral;
   },
-  apply(mode){
-    mode = ['fulltime','freelance','both','none'].includes(mode)?mode:'none';
+  // banner text per combination (null = no banner)
+  pickLine(r,d,f){
+    return ({
+      R:'Open to remote roles, worldwide',
+      D:'Open to full-time — Delhi NCR',
+      RD:'Open to full-time — remote or Delhi NCR',
+      F:'Open for freelance',
+      RF:'Open for freelance and remote roles',
+      DF:'Open for freelance and full-time — Delhi NCR',
+      RDF:'Open for freelance and full-time — remote or Delhi NCR',
+      '':null
+    })[(r?'R':'')+(d?'D':'')+(f?'F':'')];
+  },
+  apply(cfg){
+    const {remote:r,delhi:d,freelance:f}=this.norm(cfg);
     const tag=document.getElementById('availTag');
     const bar=document.getElementById('availBar');
-    const txt=this.line[mode];
+    const txt=this.pickLine(r,d,f);
     // desktop inline tag
-    if(txt){tag.textContent=txt;tag.hidden=false;}else{tag.hidden=true;tag.textContent='';}
+    if(tag){ if(txt){tag.textContent=txt;tag.hidden=false;}else{tag.hidden=true;tag.textContent='';} }
     // mobile bar below nav
-    if(bar){if(txt){bar.textContent=txt;bar.hidden=false;document.body.classList.add('avail-active');}else{bar.hidden=true;bar.textContent='';document.body.classList.remove('avail-active');}}    document.querySelectorAll('.cv-link').forEach(a=>a.setAttribute('href',this.cv[mode]));
-    window.__cvHref=this.cv[mode];
+    if(bar){ if(txt){bar.textContent=txt;bar.hidden=false;document.body.classList.add('avail-active');}else{bar.hidden=true;bar.textContent='';document.body.classList.remove('avail-active');} }
+    const cv=this.pickCV(r,d,f);
+    document.querySelectorAll('.cv-link').forEach(a=>a.setAttribute('href',cv));
+    window.__cvHref=cv;
   }
 };
-// Apply live config on load
+// Apply live config on load (new {availability:{...}} schema, with legacy availabilityMode fallback)
 (function(){
-  const mode=(window.SITE_CONFIG&&window.SITE_CONFIG.availabilityMode)||'none';
-  AVAIL.apply(mode);
+  let cfg=window.SITE_CONFIG&&window.SITE_CONFIG.availability;
+  if(!cfg && window.SITE_CONFIG && window.SITE_CONFIG.availabilityMode){
+    const m=window.SITE_CONFIG.availabilityMode;
+    cfg={remote:(m==='fulltime'||m==='both'),delhi:(m==='fulltime'||m==='both'),freelance:(m==='freelance'||m==='both')};
+  }
+  AVAIL.apply(cfg||{});
 })();
 
 /* ============ HIDDEN ADMIN PANEL ============ */
 (function(){
   const panel=document.getElementById('adminPanel');
   if(!panel)return;
-  const liveMode=(window.SITE_CONFIG&&window.SITE_CONFIG.availabilityMode)||'none';
-  const labels={fulltime:"Open to full-time — Delhi NCR / Remote",freelance:"Open for freelance",both:"Open to full-time or freelance",none:"(no banner shown)"};
-  const cvs={fulltime:"Zuhaib_Wani_CV_Fulltime.pdf",freelance:"Zuhaib_Wani_CV_Freelance.pdf",both:"Zuhaib_Wani_CV_Fulltime.pdf",none:"Zuhaib_Wani_CV_Neutral.pdf"};
+  const $=id=>document.getElementById(id);
+  function liveCfg(){
+    let c=window.SITE_CONFIG&&window.SITE_CONFIG.availability;
+    if(!c && window.SITE_CONFIG && window.SITE_CONFIG.availabilityMode){
+      const m=window.SITE_CONFIG.availabilityMode;
+      c={remote:(m==='fulltime'||m==='both'),delhi:(m==='fulltime'||m==='both'),freelance:(m==='freelance'||m==='both')};
+    }
+    return AVAIL.norm(c);
+  }
+  const LIVE=liveCfg();
+  const baseName=p=>p.split('/').pop();
 
-  function modeFromToggles(){
-    const f=document.getElementById('apFull').checked, r=document.getElementById('apFree').checked;
-    if(f&&r)return'both'; if(f)return'fulltime'; if(r)return'freelance'; return'none';
-  }
-  function syncToggles(mode){
-    document.getElementById('apFull').checked=(mode==='fulltime'||mode==='both');
-    document.getElementById('apFree').checked=(mode==='freelance'||mode==='both');
-  }
-  function updatePreview(m){
-    const pre=document.getElementById('apPreview');
-    pre.innerHTML=`<span class="pv-mode">${m}</span><b>Banner:</b> ${labels[m]}<br><b>CV:</b> ${cvs[m]}`;
+  function cfgFromToggles(){ return {remote:$('apRemote').checked, delhi:$('apDelhi').checked, freelance:$('apFree').checked}; }
+  function syncToggles(c){ c=AVAIL.norm(c); $('apRemote').checked=c.remote; $('apDelhi').checked=c.delhi; $('apFree').checked=c.freelance; }
+  function updatePreview(c){
+    c=AVAIL.norm(c);
+    const banner=AVAIL.pickLine(c.remote,c.delhi,c.freelance);
+    const cv=baseName(AVAIL.pickCV(c.remote,c.delhi,c.freelance));
+    $('apPreview').innerHTML=`<b>Banner:</b> ${banner||'<i>(no banner shown)</i>'}<br><b>CV:</b> ${cv}`;
   }
   function flash(msg,ok=true){
-    const s=document.getElementById('apStatus');
+    const s=$('apStatus');
     s.textContent=msg;s.style.color=ok?'var(--accent-3,#3ad07a)':'#ff5c35';s.style.opacity=1;
     setTimeout(()=>{s.style.opacity=0;},2600);
   }
-  function refresh(){
-    const m=modeFromToggles();
-    AVAIL.apply(m);
-    updatePreview(m);
-  }
-  function openPanel(){syncToggles(liveMode);updatePreview(liveMode);panel.hidden=false;}
+  function refresh(){ const c=cfgFromToggles(); AVAIL.apply(c); updatePreview(c); }
+  function openPanel(){syncToggles(LIVE);updatePreview(LIVE);panel.hidden=false;}
   if(location.hash==='#zwadmin')openPanel();
   let buf='';
   addEventListener('keydown',e=>{
@@ -639,34 +683,38 @@ const AVAIL = {
     buf=(buf+e.key.toLowerCase()).slice(-3);
     if(buf==='zwa')openPanel();
   });
-  document.getElementById('apFull').addEventListener('change',refresh);
-  document.getElementById('apFree').addEventListener('change',refresh);
-  document.getElementById('apClose').addEventListener('click',()=>{panel.hidden=true;AVAIL.apply(liveMode);});
-  document.getElementById('apReset').addEventListener('click',()=>{syncToggles(liveMode);refresh();flash('Reset to current live setting');});
+  ['apRemote','apDelhi','apFree'].forEach(id=>$(id).addEventListener('change',refresh));
+  $('apClose').addEventListener('click',()=>{panel.hidden=true;AVAIL.apply(LIVE);});
+  $('apReset').addEventListener('click',()=>{syncToggles(LIVE);refresh();flash('Reset to current live setting');});
 
-  // ── DOWNLOAD config.js ──
-  document.getElementById('apDownload').addEventListener('click',()=>{
-    const m=modeFromToggles();
-    const content=`/* ============================================================
-   SITE CONFIG — edit availabilityMode to update availability.
-   Values: 'fulltime' | 'freelance' | 'both' | 'none'
-   After changing: re-upload to Vercel to go live.
+  function configText(c){
+    c=AVAIL.norm(c);
+    return `/* ============================================================
+   SITE CONFIG — toggle availability, then re-upload to Vercel.
+   true = ON (advertised on site) · false = OFF
    ============================================================ */
 window.SITE_CONFIG = {
-  availabilityMode: '${m}'
+  availability: {
+    remote: ${c.remote},     // Open to remote roles, worldwide
+    delhi: ${c.delhi},      // Open to full-time, Delhi NCR
+    freelance: ${c.freelance}   // Open for freelance
+  }
 };
 `;
+  }
+
+  // ── DOWNLOAD config.js ──
+  $('apDownload').addEventListener('click',()=>{
     const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([content],{type:'application/javascript'}));
+    a.href=URL.createObjectURL(new Blob([configText(cfgFromToggles())],{type:'application/javascript'}));
     a.download='config.js';a.click();URL.revokeObjectURL(a.href);
-    flash(`Downloaded config.js (mode: ${m}) — replace in folder, re-upload to Vercel`);
+    flash('Downloaded config.js — replace in folder, re-upload to Vercel');
   });
 
-  // ── COPY value ──
-  document.getElementById('apCopy').addEventListener('click',()=>{
-    const m=modeFromToggles();
-    navigator.clipboard.writeText(`availabilityMode: '${m}'`)
-      .then(()=>flash(`Copied: availabilityMode: '${m}'`))
-      .catch(()=>flash(`Mode is: '${m}' — copy manually`,false));
+  // ── COPY contents ──
+  $('apCopy').addEventListener('click',()=>{
+    navigator.clipboard.writeText(configText(cfgFromToggles()))
+      .then(()=>flash('Copied config.js contents'))
+      .catch(()=>flash('Copy failed — use Download instead',false));
   });
 })();
