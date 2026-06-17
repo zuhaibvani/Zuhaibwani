@@ -113,96 +113,105 @@ let PDFQUEUE=[];
    PageUp/Down, Home/End), and a persistent copyright stamp. A browser must
    fetch a file to display it, so this deters casual lifting; it cannot make a
    public file un-saveable. */
-function pdfFsRequest(el){ return el.requestFullscreen || el.webkitRequestFullscreen; }
-function pdfFsElement(){ return document.fullscreenElement || document.webkitFullscreenElement; }
-function pdfFsExit(){ (document.exitFullscreen || document.webkitExitFullscreen || function(){}).call(document); }
+function pdfExitMax(){ document.querySelectorAll('.pdfv.maxed').forEach(v=>{ v.classList.remove('maxed'); if(v._relayout) setTimeout(v._relayout,60); }); document.body.classList.remove('pdf-maxed'); }
 const PDF_PAD=16;
 function renderPDFs(){
   if(!window.pdfjsLib){ PDFQUEUE.forEach(({id})=>{const r=document.getElementById(id);const sc=r&&r.querySelector('.pdfv-scroll');if(sc)sc.innerHTML='<div class="pdfv-err">Viewer failed to load.</div>';}); PDFQUEUE=[]; return; }
   try{ pdfjsLib.GlobalWorkerOptions.workerSrc='assets/js/vendor/pdf.worker.min.js'; }catch(e){}
   PDFQUEUE.forEach(({id,src})=>{
     const root=document.getElementById(id); if(!root) return;
+    const stage=root.querySelector('.pdfv-stage');
     const scroll=root.querySelector('.pdfv-scroll');
-    const fsBtn=root.querySelector('.fsBtn'), fitBtn=root.querySelector('.pfit');
+    const fsBtn=root.querySelector('.fsBtn'), modeBtn=root.querySelector('.pmode');
     const prevBtn=root.querySelector('.pprev'), nextBtn=root.querySelector('.pnext');
     const curEl=root.querySelector('.pcur'), totEl=root.querySelector('.ptot');
     if(!scroll) return;
-    let doc=null, fit='width', pages=[], rendered=new Set(), cur=1, total=0, baseVp=null;
-
+    let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, baseVp=null;
     function scaleFor(){
-      const w=scroll.clientWidth-PDF_PAD*2;
-      if(fit==='width') return w/baseVp.width;
-      const h=scroll.clientHeight-PDF_PAD*2;
+      const w=Math.max(40, scroll.clientWidth-PDF_PAD*2);
+      if(mode==='scroll') return w/baseVp.width;
+      const h=Math.max(40, scroll.clientHeight-PDF_PAD*2);
       return Math.min(w/baseVp.width, h/baseVp.height);
     }
     function renderPage(n){
       if(rendered.has(n)||!doc) return; rendered.add(n);
       doc.getPage(n).then(page=>{
-        const vp=page.getViewport({scale:1});
         const sc=scaleFor(), dpr=window.devicePixelRatio||1;
-        const cssW=vp.width*sc, cssH=vp.height*sc;
+        const cssW=baseVp.width*sc, cssH=baseVp.height*sc;
         const rv=page.getViewport({scale:sc*dpr});
         const wrap=pages[n-1]; if(!wrap) return;
         const cv=document.createElement('canvas');
-        cv.width=rv.width; cv.height=rv.height; cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
+        cv.width=Math.floor(rv.width); cv.height=Math.floor(rv.height);
+        cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
         wrap.style.height='auto'; wrap.innerHTML=''; wrap.appendChild(cv);
         page.render({canvasContext:cv.getContext('2d',{alpha:false}),viewport:rv});
       }).catch(()=>{ rendered.delete(n); });
     }
-    function relayout(){
-      if(!baseVp||!root.isConnected) return;
-      const cssH=baseVp.height*scaleFor();
-      pages.forEach(el=>{ el.innerHTML=''; el.style.height=cssH+'px'; });
-      rendered.clear(); io.disconnect(); pages.forEach(el=>io.observe(el));
+    const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'300px 0px'});
+    function applyPaged(){
+      io.disconnect(); rendered.clear();
+      pages.forEach((el,i)=>{ el.innerHTML=''; el.style.height='auto'; el.style.display=(i===cur-1)?'block':'none'; });
+      renderPage(cur); if(curEl)curEl.textContent=cur;
     }
-    const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'250px 0px'});
+    function applyScroll(){
+      const cssH=baseVp.height*scaleFor(); rendered.clear(); io.disconnect();
+      pages.forEach(el=>{ el.innerHTML=''; el.style.display='block'; el.style.height=cssH+'px'; io.observe(el); });
+      if(curEl)curEl.textContent=cur;
+    }
+    function relayout(){ if(!baseVp||!root.isConnected) return; (mode==='paged'?applyPaged:applyScroll)(); }
     root._relayout=relayout;
-
+    function goTo(n){
+      n=Math.max(1,Math.min(total,n)); cur=n;
+      if(mode==='paged'){ applyPaged(); }
+      else { const el=pages[n-1]; if(el) scroll.scrollTo({top:el.offsetTop-PDF_PAD,behavior:'smooth'}); if(curEl)curEl.textContent=n; }
+    }
     pdfjsLib.getDocument({url:src,isEvalSupported:false}).promise.then(d=>{ doc=d; total=d.numPages; if(totEl)totEl.textContent=total; return d.getPage(1); })
       .then(page=>{
         baseVp=page.getViewport({scale:1});
-        const cssH=baseVp.height*scaleFor();
-        for(let n=1;n<=total;n++){ const el=document.createElement('div'); el.className='pdfv-page'; el.dataset.pg=n; el.style.height=cssH+'px'; scroll.appendChild(el); pages.push(el); io.observe(el); }
+        for(let n=1;n<=total;n++){ const el=document.createElement('div'); el.className='pdfv-page'; el.dataset.pg=n; scroll.appendChild(el); pages.push(el); }
+        relayout();
         try{ if(root.closest('.pm')) scroll.focus({preventScroll:true}); }catch(_){}
       })
       .catch(()=>{ scroll.innerHTML='<div class="pdfv-err">Unable to display this document.</div>'; });
-
-    let st; scroll.addEventListener('scroll',()=>{ clearTimeout(st); st=setTimeout(()=>{
+    let st; scroll.addEventListener('scroll',()=>{ if(mode!=='scroll')return; clearTimeout(st); st=setTimeout(()=>{
       const mid=scroll.scrollTop+scroll.clientHeight/2; let acc=0,idx=1;
       for(let i=0;i<pages.length;i++){ acc+=pages[i].offsetHeight+16; idx=i+1; if(mid<=acc) break; }
       cur=idx; if(curEl)curEl.textContent=cur;
     },70); });
-
-    function goTo(n){ n=Math.max(1,Math.min(total,n)); const el=pages[n-1]; if(el) scroll.scrollTo({top:el.offsetTop-PDF_PAD,behavior:'smooth'}); cur=n; if(curEl)curEl.textContent=n; }
     if(prevBtn)prevBtn.addEventListener('click',()=>{goTo(cur-1);SFX.tick();});
     if(nextBtn)nextBtn.addEventListener('click',()=>{goTo(cur+1);SFX.tick();});
-    if(fitBtn){ const lbl=()=>fitBtn.textContent=(fit==='width'?'Fit page':'Fit width'); lbl(); fitBtn.addEventListener('click',()=>{ fit=(fit==='width'?'page':'width'); lbl(); relayout(); SFX.pop(); }); }
-
+    if(modeBtn){
+      const lbl=()=>modeBtn.textContent=(mode==='paged'?'\u229f Scroll':'\u2750 Flip');
+      root.classList.add('paged'); lbl();
+      modeBtn.addEventListener('click',()=>{
+        mode=(mode==='paged'?'scroll':'paged');
+        root.classList.toggle('paged', mode==='paged'); lbl(); relayout();
+        if(mode==='scroll'){ const el=pages[cur-1]; if(el) setTimeout(()=>{scroll.scrollTop=Math.max(0,el.offsetTop-PDF_PAD);},30); }
+        SFX.pop();
+      });
+    }
+    let sx=0,sy=0,sti=0;
+    stage.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY; sti=Date.now(); },{passive:true});
+    stage.addEventListener('touchend',e=>{ if(mode!=='paged')return; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy;
+      if(Math.abs(dx)>42 && Math.abs(dx)>Math.abs(dy)*1.4 && Date.now()-sti<700){ goTo(cur+(dx<0?1:-1)); SFX.tick(); } },{passive:true});
     scroll.setAttribute('tabindex','0');
     scroll.addEventListener('keydown',e=>{
-      if(e.key==='ArrowRight'||e.key==='PageDown'||(e.key==='ArrowDown'&&fit==='page')){e.preventDefault();goTo(cur+1);}
-      else if(e.key==='ArrowLeft'||e.key==='PageUp'||(e.key==='ArrowUp'&&fit==='page')){e.preventDefault();goTo(cur-1);}
+      if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();goTo(cur+1);}
+      else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();goTo(cur-1);}
       else if(e.key==='Home'){e.preventDefault();goTo(1);}
       else if(e.key==='End'){e.preventDefault();goTo(total);}
     });
     scroll.addEventListener('mousedown',()=>{ try{scroll.focus({preventScroll:true});}catch(_){scroll.focus();} });
-
     if(fsBtn){
-      if(!(document.fullscreenEnabled||document.webkitFullscreenEnabled)){ fsBtn.style.display='none'; }
-      else fsBtn.addEventListener('click',()=>{ if(pdfFsElement())pdfFsExit(); else { const r=pdfFsRequest(root); if(r)Promise.resolve(r.call(root)).catch(()=>{});} SFX.pop(); });
+      fsBtn.addEventListener('click',()=>{
+        const on=root.classList.toggle('maxed'); document.body.classList.toggle('pdf-maxed', on);
+        fsBtn.textContent = on?'\u2921 Exit':'\u2922 Fullscreen'; setTimeout(relayout,60); SFX.pop();
+      });
     }
     let rz; addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(relayout,160);});
   });
   PDFQUEUE=[];
 }
-function onPdfFsChange(){
-  const cur=pdfFsElement();
-  document.querySelectorAll('.pdfv').forEach(v=>{ const b=v.querySelector('.fsBtn'); if(b&&b.style.display!=='none') b.textContent=(cur===v)?'⤡ Exit fullscreen':'⤢ Fullscreen'; });
-  if(cur&&cur._relayout) setTimeout(cur._relayout,80);
-  else document.querySelectorAll('.pdfv').forEach(v=>{ if(v._relayout) setTimeout(v._relayout,80); });
-}
-document.addEventListener('fullscreenchange',onPdfFsChange);
-document.addEventListener('webkitfullscreenchange',onPdfFsChange);
 
 function openProject(id){
   const p=P.find(x=>x.id===id);if(!p)return;
@@ -247,7 +256,7 @@ function openProject(id){
             <button class="pbtn pnext" aria-label="Next page">›</button>
           </div>
           <div class="pacts">
-            <button class="pbtn pfit">Fit page</button>
+            <button class="pbtn pmode">⊟ Scroll</button>
             <button class="pbtn fsBtn">⤢ Fullscreen</button>
           </div>
         </div>
@@ -270,10 +279,10 @@ function openProject(id){
   pm.classList.add('open');document.body.style.overflow='hidden';document.body.classList.add('pm-open');pm.scrollTop=0;
 }
 
-function closeProject(){if(pdfFsElement())pdfFsExit();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';document.body.classList.remove('pm-open');}
+function closeProject(){pdfExitMax();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';document.body.classList.remove('pm-open');}
 document.getElementById('pmclose').addEventListener('click',closeProject);
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){if(pdfFsElement()){e.preventDefault();pdfFsExit();return;}closeProject();closeLB();}
+  if(e.key==='Escape'){if(document.querySelector('.pdfv.maxed')){e.preventDefault();pdfExitMax();return;}closeProject();closeLB();}
   if(lb.classList.contains('open')){if(e.key==='ArrowRight')lbStep(1);if(e.key==='ArrowLeft')lbStep(-1);}
 });
 
@@ -290,6 +299,11 @@ document.getElementById('lbPrev').addEventListener('click',()=>lbStep(-1));
 document.getElementById('lbNext').addEventListener('click',()=>lbStep(1));
 document.getElementById('lbClose').addEventListener('click',closeLB);
 lb.addEventListener('click',e=>{if(e.target===lb)closeLB();});
+let _lx=0,_ly=0,_lt=0;
+lb.addEventListener('touchstart',e=>{const t=e.changedTouches[0];_lx=t.clientX;_ly=t.clientY;_lt=Date.now();},{passive:true});
+lb.addEventListener('touchend',e=>{const t=e.changedTouches[0];const dx=t.clientX-_lx,dy=t.clientY-_ly;if(Math.abs(dx)>42&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-_lt<700){lbStep(dx<0?1:-1);}},{passive:true});
+pmInner.addEventListener('click',e=>{const t=e.target.closest('[data-lb]');if(t&&t.dataset.lb!==''&&t.dataset.lb!=null)openLB(+t.dataset.lb);});
+pm.addEventListener('dblclick',e=>{if(!/input|textarea/i.test(e.target.tagName))e.preventDefault();});
 
 /* ============ RECS ============ */
 function initials(n){return n.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();}
