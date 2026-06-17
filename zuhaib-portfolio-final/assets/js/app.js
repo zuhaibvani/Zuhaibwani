@@ -158,7 +158,7 @@ function renderPDFs(){
     const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'250px 0px'});
     root._relayout=relayout;
 
-    pdfjsLib.getDocument(src).promise.then(d=>{ doc=d; total=d.numPages; if(totEl)totEl.textContent=total; return d.getPage(1); })
+    pdfjsLib.getDocument({url:src,isEvalSupported:false}).promise.then(d=>{ doc=d; total=d.numPages; if(totEl)totEl.textContent=total; return d.getPage(1); })
       .then(page=>{
         baseVp=page.getViewport({scale:1});
         const cssH=baseVp.height*scaleFor();
@@ -573,20 +573,26 @@ document.getElementById('zForm').addEventListener('submit',async e=>{
   btn.disabled=true;btn.textContent='Sending…';
   const subject=isSpam?'[Folio-SPAM] Possible spam from website':'[Folio] New website message';
   try{
-    const r=await fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
-      body:JSON.stringify({
-        access_key:'3717e44f-c308-4552-8584-d5ccff34ea92',
-        subject:subject, from_name:'Portfolio Website',
-        name:f.name.value||'Anonymous',
-        email:f.email.value||'not-given@portfolio.site',
-        message:msg, flagged:isSpam?'likely-spam':'clean'})});
+    // FormData => a "simple" CORS request (no preflight). iOS Safari chokes on the
+    // JSON+custom-header version's preflight; this works across all browsers.
+    const fd=new FormData();
+    fd.append('access_key','3717e44f-c308-4552-8584-d5ccff34ea92');
+    fd.append('subject',subject);
+    fd.append('from_name','Portfolio Website');
+    fd.append('name',f.name.value||'Anonymous');
+    fd.append('email',f.email.value||'noreply@zuhaibwani.vercel.app');
+    fd.append('message',msg);
+    fd.append('flagged',isSpam?'likely-spam':'clean');
+    const r=await fetch('https://api.web3forms.com/submit',{method:'POST',body:fd});
     const data=await r.json().catch(()=>({}));
-    if(!r.ok || data.success===false) throw 0;
-    const ok=document.getElementById('zOk'); ok.textContent='✓ Sent! Zuhaib will read it soon.'; ok.style.display='block';
+    if(!data.success) throw new Error(data.message||('Error '+r.status));
+    const ok=document.getElementById('zOk'); ok.style.color=''; ok.textContent='✓ Sent! Zuhaib will read it soon.'; ok.style.display='block';
     f.reset();btn.textContent='Send message';btn.disabled=false;SFX.chirp();
-  }catch(_){
+  }catch(err){
     btn.disabled=false;btn.textContent='Try again';
-    const ok=document.getElementById('zOk'); ok.textContent='Couldn’t send just now — please email Zuhaibmushtaq95@gmail.com';ok.style.color='#ff7a5c';ok.style.display='block';
+    const ok=document.getElementById('zOk'); ok.style.color='#ff7a5c';
+    ok.textContent=(err&&err.message?'Couldn’t send ('+err.message+') — ':'Couldn’t send — ')+'please email Zuhaibmushtaq95@gmail.com';
+    ok.style.display='block';
   }
 });
 
