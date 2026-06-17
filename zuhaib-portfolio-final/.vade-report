@@ -1,0 +1,58 @@
+# Vercel Web Analytics Installation
+
+Successfully installed and configured Vercel Web Analytics for this static HTML portfolio site.
+
+## Changes Made
+
+### 1. Package Installation
+**Created:** `package.json`
+- Added `@vercel/analytics` (v1.4.1) as a devDependency
+- Configured basic npm scripts for the static site
+
+**Created:** `package-lock.json`
+- Lock file generated after installing @vercel/analytics package
+- Ensures consistent dependency versions across environments
+
+**Created:** `.gitignore`
+- Added to exclude node_modules, build artifacts, and cache directories from version control
+- Follows best practices for Node.js projects
+
+### 2. Analytics Integration
+**Modified:** `index.html`
+- Added Vercel Web Analytics initialization script in the `<head>` section
+- Script creates the `window.va` function for analytics tracking
+- Added deferred loading of Vercel's analytics script (`/_vercel/insights/script.js`)
+- This follows the official Vercel documentation for vanilla JavaScript/HTML sites
+
+### 3. Content-Security-Policy Updates
+Updated CSP headers in three locations to allow Vercel Analytics scripts and API calls:
+
+**Modified:** `index.html` (meta tag)
+**Modified:** `vercel.json` (Vercel-specific headers)
+**Modified:** `_headers` (Netlify-compatible headers file)
+
+Added the following CSP directives:
+- `script-src`: Added `https://vercel.live https://*.vercel-scripts.com https://*.vercel-insights.com`
+- `connect-src`: Added `https://vitals.vercel-insights.com https://*.vercel-analytics.com`
+
+These changes ensure that:
+1. Vercel Analytics scripts can load and execute properly
+2. Analytics data can be sent to Vercel's tracking endpoints
+3. All security headers remain strict while allowing necessary analytics functionality
+
+## Implementation Details
+
+The implementation follows the official Vercel Analytics quickstart guide for vanilla JavaScript/HTML sites. The analytics script will:
+- Initialize on page load
+- Track page views automatically
+- Send analytics data to Vercel when the site is deployed
+- Work seamlessly with the existing static site architecture
+
+## Next Steps
+
+To activate analytics tracking:
+1. Deploy this site to Vercel
+2. Enable Web Analytics in the Vercel dashboard (Analytics → Enable)
+3. Analytics will start collecting data automatically after deployment
+
+No additional configuration or environment variables are required. The analytics integration is complete and ready for production deployment.
