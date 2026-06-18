@@ -244,7 +244,7 @@ const RECS_LI=[
  {t:"Zuhaib is a very hard-working person who can tackle any problem with ease. A highly skilled and dedicated professional — his expertise in animation and graphics has helped our company immensely. An all-around great guy to work with.",n:"Drone Pathak",r:"Unit Marketing Lead — South Asia @ Mott MacDonald"}
 ];
 const RECS_CL=[
- {t:"Experience the excellence of our exceptional service, surpassing expectations in every aspect of branding, logos, and social media. Your satisfaction is not just promised but guaranteed!",n:"Shadab Mufti",r:"CEO — Postle Packaging & Printing",ig:"postle_company"},
+ {t:"Zuhaib built our brand from nothing — logo, typography, colour system, the whole identity. What stood out was how clearly he understood the business before touching any design tool. Every decision had a reason behind it. The final work was sharp, consistent and exactly what Postle needed to show up professionally from day one.",n:"Shadab Mufti",r:"CEO — Postle Packaging & Printing",ig:"postle_company"},
  {t:"Zuhaib excels in quality and professionalism. A loyal customer for years, always satisfied. Creative branding, and engaging social media. Extremely pleased!",n:"Aqsa Zaaz",r:"CEO — Panunpoot™",ig:"panunpoot_official"},
  {t:"Our brand flourished with a top-notch logo and packaging design. The seamless creativity in every aspect is truly impressive. Grateful for the comprehensive design solutions!",n:"Faheem Ahmed",r:"CEO — Pakeeza Polyhygiene",ig:"pakeezapolyhygiene"}
 ];
