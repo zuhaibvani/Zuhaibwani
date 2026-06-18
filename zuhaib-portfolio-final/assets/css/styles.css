@@ -6,9 +6,9 @@
   --maxw:1200px;--ease:cubic-bezier(.16,1,.3,1);
 }
 [data-theme="light"]{
-  --bg:#f5f0e8;--bg-2:#ece4d6;--bg-3:#fffdf8;
-  --ink:#1b1d24;--ink-2:#4b5160;--ink-3:#8b8f9a;
-  --line:#ddd2c0;--accent:#e84c22;--accent-2:#0f9aa6;--live:#1fa860;
+  --bg:#f6f7f9;--bg-2:#eceef2;--bg-3:#ffffff;
+  --ink:#15171c;--ink-2:#474d59;--ink-3:#646b78;
+  --line:#d7dbe2;--accent:#e2491f;--accent-2:#0a6d77;--live:#1a9d57;
   --glow:rgba(232,76,34,.14);--veil-a:rgba(245,240,232,.96);--veil-b:rgba(245,240,232,.6);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -522,9 +522,9 @@ footer .fq i{color:var(--accent);font-style:normal}
     0%,70%{left:-60%}
     100%{left:130%}
   }
-  body:not(.avail-active) .avail-bar{display:none}
+  html:not(.avail-active) .avail-bar{display:none}
   /* push hero content below the bar when it's active */
-  body.avail-active .hero{padding-top:158px}
+  html.avail-active .hero{padding-top:158px}
 }
 /* ===== HIDDEN ADMIN PANEL ===== */
 .admin-panel{position:fixed;right:18px;bottom:18px;z-index:400;width:290px;background:var(--bg-2);border:1px solid var(--accent);border-radius:16px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.55);font-family:'Space Grotesk'}
@@ -649,3 +649,10 @@ body.pdf-maxed{overflow:hidden}
 .skip-link:focus{top:12px;outline:2px solid #fff;outline-offset:2px}
 .z-consent{font-size:10.5px;color:var(--ink-3);margin:4px 2px 0;line-height:1.4}
 .z-consent a{color:var(--accent)}
+
+/* ===== light-mode polish + mobile LCP ===== */
+[data-theme="light"] .frow{box-shadow:0 1px 3px rgba(20,30,50,.05),0 6px 20px rgba(20,30,50,.04)}
+[data-theme="light"] .card{box-shadow:0 1px 3px rgba(20,30,50,.06)}
+[data-theme="light"] .chip{background:var(--bg-3)}
+[data-theme="light"] .hero-bg .slide.on{opacity:.10}
+@media(max-width:640px){.hero-bg{display:none}}

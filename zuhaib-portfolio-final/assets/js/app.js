@@ -276,6 +276,7 @@ function openProject(id){
    ${heroIsPdf?'':docsHTML}
    ${galleryHTML}`;
   renderPDFs();
+  setTimeout(()=>{const fp=document.querySelector('#pm .pdfv-scroll');if(fp){try{fp.focus({preventScroll:true});}catch(_){fp.focus();}}},160);
   pm.classList.add('open');document.body.style.overflow='hidden';document.body.classList.add('pm-open');pm.scrollTop=0;
 }
 
@@ -658,7 +659,7 @@ document.getElementById('zForm').addEventListener('submit',async e=>{
   }catch(err){
     btn.disabled=false;btn.textContent='Try again';
     const ok=document.getElementById('zOk'); ok.style.color='#ff7a5c';
-    ok.textContent=(err&&err.message?'Couldn’t send ('+err.message+') — ':'Couldn’t send — ')+'please email Zuhaibmushtaq95@gmail.com';
+    ok.textContent='Couldn’t send just now — please email me directly at Zuhaibmushtaq95@gmail.com';
     ok.style.display='block';
   }
 });
@@ -702,7 +703,7 @@ const AVAIL = {
     // desktop inline tag
     if(tag){ if(txt){tag.textContent=txt;tag.hidden=false;}else{tag.hidden=true;tag.textContent='';} }
     // mobile bar below nav
-    if(bar){ if(txt){bar.textContent=txt;bar.hidden=false;document.body.classList.add('avail-active');}else{bar.hidden=true;bar.textContent='';document.body.classList.remove('avail-active');} }
+    if(bar){ if(txt){bar.textContent=txt;bar.hidden=false;document.documentElement.classList.add('avail-active');}else{bar.hidden=true;bar.textContent='';document.documentElement.classList.remove('avail-active');} }
     const cv=this.pickCV(r,d,f);
     document.querySelectorAll('.cv-link').forEach(a=>a.setAttribute('href',cv));
     window.__cvHref=cv;
