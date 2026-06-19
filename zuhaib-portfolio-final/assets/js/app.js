@@ -126,7 +126,7 @@ function renderPDFs(){
     const prevBtn=root.querySelector('.pprev'), nextBtn=root.querySelector('.pnext');
     const curEl=root.querySelector('.pcur'), totEl=root.querySelector('.ptot');
     if(!scroll) return;
-    let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, ready=false;
+    let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, ready=false, lastAspect=1.3;
     // scale ONE page using its OWN intrinsic viewport (handles mixed page sizes/orientations)
     function scaleForPage(vp){
       const w=Math.max(40, scroll.clientWidth-PDF_PAD*2);
@@ -138,6 +138,7 @@ function renderPDFs(){
       if(rendered.has(n)||!doc) return; rendered.add(n);
       doc.getPage(n).then(page=>{
         const vp1=page.getViewport({scale:1});           // this page's real size
+        lastAspect=vp1.height/vp1.width;                 // remember real ratio for provisional sizing
         const sc=scaleForPage(vp1), dpr=window.devicePixelRatio||1;
         const cssW=vp1.width*sc, cssH=vp1.height*sc;
         const rv=page.getViewport({scale:sc*dpr});
@@ -145,7 +146,9 @@ function renderPDFs(){
         const cv=document.createElement('canvas');
         cv.width=Math.floor(rv.width); cv.height=Math.floor(rv.height);
         cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
-        wrap.style.height=(mode==='scroll'?cssH+'px':'auto'); wrap.innerHTML=''; wrap.appendChild(cv);
+        if(mode==='scroll'){ wrap.style.minHeight='0px'; wrap.style.height=cssH+'px'; }
+        else { wrap.style.minHeight='0px'; wrap.style.height='auto'; }
+        wrap.innerHTML=''; wrap.appendChild(cv);
         page.render({canvasContext:cv.getContext('2d',{alpha:false}),viewport:rv});
       }).catch(()=>{ rendered.delete(n); });
     }
@@ -157,9 +160,11 @@ function renderPDFs(){
     }
     function applyScroll(){
       rendered.clear(); io.disconnect();
-      // give each page a provisional min-height (re-set precisely when its own page renders)
+      // provisional height per page based on the last known aspect ratio (most PDFs are uniform)
       const provW=Math.max(40, scroll.clientWidth-PDF_PAD*2);
-      pages.forEach(el=>{ el.innerHTML=''; el.style.display='block'; el.style.minHeight=Math.round(provW*1.3)+'px'; el.style.height='auto'; io.observe(el); });
+      const provH=Math.round(provW*lastAspect);
+      pages.forEach(el=>{ el.innerHTML=''; el.style.display='block'; el.style.minHeight=provH+'px'; el.style.height='auto'; io.observe(el); });
+      renderPage(cur); // render the page the user is on right away so positioning is accurate
       if(curEl)curEl.textContent=cur;
     }
     function relayout(){ if(!ready||!root.isConnected) return; (mode==='paged'?applyPaged:applyScroll)(); }
@@ -206,12 +211,21 @@ function renderPDFs(){
     scroll.addEventListener('mousedown',()=>{ try{scroll.focus({preventScroll:true});}catch(_){scroll.focus();} });
     if(fsBtn){
       fsBtn.addEventListener('click',()=>{
+        // remember which page the user is on BEFORE the layout changes
+        const keep=cur;
         const on=root.classList.toggle('maxed'); document.body.classList.toggle('pdf-maxed', on);
         fsBtn.textContent = on?'\u2921 Exit':'\u2922 Fullscreen';
-        // wait for the fixed-position layout to apply, THEN recompute scale and re-center current page
-        requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ relayout();
-          if(mode==='paged'){ scroll.scrollTop=0; }
-          else { const el=pages[cur-1]; if(el) scroll.scrollTop=Math.max(0,el.offsetTop-PDF_PAD); }
+        // wait for the fixed-position layout to settle, then re-fit at the new container size
+        requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
+          cur=keep;
+          relayout();                         // re-render at new size (paged: current page; scroll: all)
+          if(mode==='scroll'){
+            // jump (no smooth) straight to the page the user was reading
+            const el=pages[cur-1];
+            if(el) scroll.scrollTop=Math.max(0, el.offsetTop - PDF_PAD);
+          } else {
+            scroll.scrollTop=0;               // paged = single page, top is correct
+          }
           try{scroll.focus({preventScroll:true});}catch(_){}
         }); });
         SFX.pop();

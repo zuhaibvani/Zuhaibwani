@@ -639,9 +639,11 @@ a:focus-visible,button:focus-visible,[tabindex]:focus-visible,.fbtn:focus-visibl
 .pdfv.maxed{position:fixed;inset:0;z-index:99999;width:100vw;height:100dvh;margin:0;border:0;border-radius:0;display:flex;flex-direction:column;background:#0a0b0f}
 .pdfv.maxed .pdfv-head,.pdfv.maxed .pdfv-bar{flex-shrink:0;background:#0a0b0f}
 .pdfv.maxed .pdfv-stage{flex:1;height:auto;min-height:0}
-.pdfv.maxed .pdfv-scroll{align-items:center;justify-content:center}
+.pdfv.maxed .pdfv-scroll{align-items:center;justify-content:flex-start}
 .pdfv.maxed.paged .pdfv-scroll{justify-content:center}
 body.pdf-maxed{overflow:hidden}
+body.pdf-maxed #pm,body.pdf-maxed .pm{overflow:hidden!important}
+.pdfv.maxed .pdfv-scroll{overscroll-behavior:contain;touch-action:pan-y}
 .lb{padding:16px}
 .lb img{max-width:100%;max-height:90vh;width:auto;height:auto;object-fit:contain}
 .pm-hero img{cursor:zoom-in}
