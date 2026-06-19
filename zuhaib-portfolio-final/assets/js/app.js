@@ -205,7 +205,14 @@ function renderPDFs(){
     if(fsBtn){
       fsBtn.addEventListener('click',()=>{
         const on=root.classList.toggle('maxed'); document.body.classList.toggle('pdf-maxed', on);
-        fsBtn.textContent = on?'\u2921 Exit':'\u2922 Fullscreen'; setTimeout(relayout,60); SFX.pop();
+        fsBtn.textContent = on?'\u2921 Exit':'\u2922 Fullscreen';
+        // wait for the fixed-position layout to apply, THEN recompute scale and re-center current page
+        requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ relayout();
+          if(mode==='paged'){ scroll.scrollTop=0; }
+          else { const el=pages[cur-1]; if(el) scroll.scrollTop=Math.max(0,el.offsetTop-PDF_PAD); }
+          try{scroll.focus({preventScroll:true});}catch(_){}
+        }); });
+        SFX.pop();
       });
     }
     let rz; addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(relayout,160);});
@@ -289,17 +296,18 @@ document.addEventListener('keydown',e=>{
 
 /* lightbox with nav */
 const lb=document.getElementById('lb'),lbimg=document.getElementById('lbimg'),lbCnt=document.getElementById('lbCnt');
-function openLB(i){LBIDX=i;paintLB();lb.classList.add('open');SFX.pop();}
+function openLB(i){LBIDX=i;paintLB();lb.classList.add('open');if(!document.body.classList.contains('pm-open')){document.body.style.overflow='hidden';}document.body.classList.add('lb-open');SFX.pop();}
 function paintLB(){const m=LBLIST[LBIDX];const vid=document.getElementById('lbvid');
   if(m.type==='video'){lbimg.style.display='none';lbimg.src='';vid.style.display='block';vid.src=m.src;if(m.poster)vid.poster=m.poster;vid.play().catch(()=>{});}
   else{vid.pause();vid.style.display='none';vid.src='';lbimg.style.display='block';lbimg.src=m.src;lbimg.alt=m.cap||'';}
   lbCnt.textContent=`${LBIDX+1} / ${LBLIST.length}${m.cap?' — '+m.cap:''}`;}
 function lbStep(d){LBIDX=(LBIDX+d+LBLIST.length)%LBLIST.length;paintLB();SFX.tick();}
-function closeLB(){lb.classList.remove('open');lbimg.src='';const vid=document.getElementById('lbvid');vid.pause();vid.src='';}
+function closeLB(){lb.classList.remove('open');lbimg.src='';const vid=document.getElementById('lbvid');vid.pause();vid.src='';document.body.classList.remove('lb-open');if(!document.body.classList.contains('pm-open')){document.body.style.overflow='';}}
 document.getElementById('lbPrev').addEventListener('click',()=>lbStep(-1));
 document.getElementById('lbNext').addEventListener('click',()=>lbStep(1));
 document.getElementById('lbClose').addEventListener('click',closeLB);
 lb.addEventListener('click',e=>{if(e.target===lb)closeLB();});
+lb.addEventListener('touchmove',e=>{if(e.target===lb||e.target.classList.contains('lb')){e.preventDefault();}},{passive:false});
 let _lx=0,_ly=0,_lt=0;
 lb.addEventListener('touchstart',e=>{const t=e.changedTouches[0];_lx=t.clientX;_ly=t.clientY;_lt=Date.now();},{passive:true});
 lb.addEventListener('touchend',e=>{const t=e.changedTouches[0];const dx=t.clientX-_lx,dy=t.clientY-_ly;if(Math.abs(dx)>42&&Math.abs(dx)>Math.abs(dy)*1.4&&Date.now()-_lt<700){lbStep(dx<0?1:-1);}},{passive:true});
@@ -487,8 +495,8 @@ const Z={
   // --- AVAILABILITY / ROLES / NOTICE / FULL-TIME vs FREELANCE / REMOTE ---
   if(rx(/full.?time|freelance|contract|notice period|start date|when can he (start|join)|joining|relocat|on.?site|\bremote\b|hybrid|\broles?\b|position|opening|\bjob\b|art director|creative lead|what.*looking for|hiring him/))
     return this.say(this.pick([
-      `He's open to both <b>senior creative roles</b> (Senior Designer, Creative Lead, Art Director) and <b>freelance / contract</b> work. Remote-first, and open to <b>Delhi NCR</b> on a hybrid basis. Available to start soon — that green dot up top means he's around. Use the <b>Message tab</b> to talk specifics.`,
-      `Two tracks: full-time <b>senior creative / lead / art-director</b> roles, and freelance projects alongside. Remote worldwide, or hybrid around <b>Delhi NCR</b>, and he can start quickly. Drop a note via the <b>Message tab</b> and he'll line up a call.`]));
+      `He's open to both <b>senior creative roles</b> (Senior Designer, Creative Lead, Art Director) and <b>freelance / contract</b> work — and he's flexible on setup: <b>remote, hybrid or on-site</b> all work for him, including <b>Delhi NCR</b>. Available to start soon — that green dot up top means he's around. Use the <b>Message tab</b> to talk specifics.`,
+      `Two tracks: full-time <b>senior creative / lead / art-director</b> roles, and freelance projects alongside. He's open to <b>remote, hybrid or on-site</b> (including <b>Delhi NCR</b>) and can start quickly. Drop a note via the <b>Message tab</b> and he'll line up a call.`]));
 
   // --- CLIENTS / WHO HAS HE WORKED FOR / REFERENCES ---
   if(rx(/clients?|worked (with|for|alongside)|companies he|brands? he|who has he work|who.?s he worked|references|testimonial|recommendation/)&&!has('culture','collaborat'))
@@ -557,7 +565,7 @@ const Z={
   // --- ABOUT / WHO ---
   if(rx(/who|about|himself|tell me about|introduce|describe/))
     return this.say(this.pick([
-      `Zuhaib's a Senior Creative Designer — seven years across visual, motion, 3D and real-time. He grew up in Sopore, North Kashmir, taught himself the craft, and built a global-standard career from a small town. His philosophy in one line: <i>"if it doesn't communicate, it doesn't ship."</i> Owns briefs end-to-end, works remote-first.`,
+      `Zuhaib's a Senior Creative Designer — seven years across visual, motion, 3D and real-time. He grew up in Sopore, North Kashmir, taught himself the craft, and built a global-standard career from a small town. His philosophy in one line: <i>"if it doesn't communicate, it doesn't ship."</i> Owns briefs end-to-end, and is open to remote, hybrid or on-site work.`,
       `In short: a senior creative who treats a brand as one continuous problem — what it <i>says</i>, what it <i>shows</i>, and what it lets people <i>do</i>. Seven years, multiple cities, one consistent standard. Warm to work with, serious about outcomes. Ask me anything specific!`]));
 
   // --- CONTACT / AVAILABILITY ---
@@ -595,6 +603,50 @@ const Z={
   if(rx(/\bai\b|artificial|midjourney|chatgpt|automat/))
     return this.say(`He uses AI as an accelerator, not a crutch — speeding up ideation and iteration so more time goes into craft and direction. Roughly a third faster concept-to-delivery, with final quality kept fully hand-controlled. (And yes — I'm a small scripted helper, not a live AI. Zuhaib kept me lightweight on purpose. 🙂)`);
 
+  // --- SPECIFIC TOOLS (deep) ---
+  if(rx(/substance|painter|texturing|pbr|texture/))
+    return this.say(`Yes — <b>Substance Painter</b> is part of his 3D pipeline for <b>PBR texturing</b>, and he works in full physically-based workflows across Blender. The Medieval Windmill game asset and his product visualizations lean on this. Photoreal materials are a real strength.`);
+  if(rx(/photoshop|illustrator|indesign|adobe|creative suite|creative cloud/))
+    return this.say(`Across <b>Adobe Creative Suite</b> daily — <b>Photoshop</b> (compositing, retouching, matte work), <b>Illustrator</b> (logos, vector systems, brand-accurate assets), and <b>InDesign</b> (layouts, decks, print). For the Now Engage film he even rebuilt brand-exact task cards in Illustrator by hand with precise RGB values when AI versions weren't accurate.`);
+  if(rx(/3ds max|3dsmax|\bmax\b|maya|zbrush|cinema 4d|c4d/))
+    return this.say(`His main 3D tool is <b>Blender</b> (expert level), and he also works in <b>3ds Max</b>, with <b>Maya</b> and <b>ZBrush</b> in the supporting kit. Modelling, sculpting, look-dev, lighting and rendering — he covers the full 3D arc rather than one slice of it.`);
+  if(rx(/omniverse|nvidia|real.?time render|render engine/))
+    return this.say(`He works with <b>NVIDIA Omniverse</b> for collaborative real-time 3D, alongside Unreal Engine 5. Real-time rendering and interactive pipelines are an area he's actively deepening.`);
+  if(rx(/motion|animation|animate|2d|kinetic|mograph|video edit|premiere/))
+    return this.say(`Motion is a core discipline — <b>After Effects</b> and <b>Premiere Pro</b> for motion graphics, 2D animation, kinetic type and editing. He pre-composes cleanly, scripts repetitive work (ExtendScript), and even used custom .jsx automation on the Now Engage film to scatter 28 animated cards in seconds. Open that project to see the 2D-meets-3D side.`);
+  if(rx(/presentation|deck|powerpoint|pitch|slides|keynote/))
+    return this.say(`Presentation design is a quiet specialty — <b>30+ decks</b> for international clients at a global engineering consultancy. Not "pretty slides" but structured visual systems that carry complex engineering and business stories cleanly. It's one of the most underrated parts of his range.`);
+  if(rx(/vfx|compositing|composite|green ?screen|roto|visual effects/))
+    return this.say(`Yes — <b>VFX compositing</b> is in his toolkit. The "VFX Breakdown — Fantasy Drone Shot" on this site shows real footage integrated with a fantasy CG environment. Comfortable across the motion-plus-3D-plus-compositing pipeline.`);
+
+  // --- ACHIEVEMENTS / IMPACT / METRICS ---
+  if(rx(/achiev|impact|result|metric|number|accomplish|proud of|highlight|deliver/))
+    return this.say(this.pick([
+      `A few concrete ones: <b>50+ visual assets across 5+ countries</b> with measurable engagement lift at a global engineering consultancy, <b>30+ international presentation decks</b>, <b>20+ photoreal Blender product visualizations</b>, and AI-assisted pipelines that cut concept-to-delivery by roughly <b>30%</b>. High client retention on the freelance side too.`,
+      `By the numbers: 50+ assets delivered internationally, 30+ client decks, 20+ photoreal 3D visualizations, ~30% faster delivery using AI-assisted workflows, plus reusable component systems that shortened turnaround. The Experience section breaks these down per role.`]));
+
+  // --- SPECIFIC COMPANIES (deep) ---
+  if(rx(/mott|macdonald|engineering consultancy/))
+    return this.say(`At <b>Mott MacDonald</b> (a global engineering consultancy) he spent roughly <b>4 years</b> as a Visualiser / Senior Creative Designer — brand and visual systems, photoreal 3D, motion, and 30+ international presentation decks for infrastructure and engineering projects across 5+ countries. That's where his range and corporate polish were built.`);
+  if(rx(/sutherland|atmecs|immersive|specialist/))
+    return this.say(`At <b>ATMECS Global / Sutherland</b> he was an <b>Immersive Tech Specialist / Senior Creative Designer</b> — establishing creative direction for a real-time division, building Unreal Engine 5 experiences, Blueprint logic, gamified walkthroughs, and AI-assisted pipelines. The role ended in a business restructure; he's now actively looking for the next senior creative seat.`);
+  if(rx(/pixel buzz|pixelbuzz|freelance brand|own brand/))
+    return this.say(`<b>Pixel Buzz</b> is his freelance brand — where it all started and still runs alongside. Direct work with founders and businesses on brand identity, motion, 3D and campaigns, with strong client retention. Currently he's doing freelance work for <b>Philips / Signify</b> through an agency, for example.`);
+
+  // --- WHAT'S HE LOOKING FOR / NOTICE / START / FIT ---
+  if(rx(/looking for|seeking|ideal role|next role|kind of role|what does he want|notice|start date|join|when can/))
+    return this.say(this.pick([
+      `He's after a <b>Senior Creative Designer, Creative Lead or Art Director</b> seat where range is an asset — somewhere he can own work from idea to finished, moving, interactive thing. Open to <b>remote, hybrid or on-site</b>. Available to start soon. The <b>Message tab</b> is the fastest way to talk specifics.`,
+      `Ideal fit: a team that needs one person who can carry brand, motion, 3D and real-time without handing off between specialists. Senior / lead / art-director level, any working setup (remote, hybrid, on-site). He can start quickly — reach him via the Message tab.`]));
+
+  // --- AI TOOLS (specific list) ---
+  if(rx(/midjourney|firefly|runway|generative|ai tool|ai-assist|ai assist|gen ai/))
+    return this.say(`On the AI side he uses <b>Midjourney</b>, <b>Adobe Firefly</b> and <b>Runway</b> for ideation, look exploration and speeding up iteration — always as an accelerator, never the final craft. He's careful about it: on brand-exact work he rebuilds assets by hand when AI isn't precise enough. Net effect is roughly 30% faster delivery without losing control of quality.`);
+
+  // --- UI / UX / WEB ---
+  if(rx(/\bui\b|\bux\b|web design|website|landing|interface|figma|adobe xd|prototyp/))
+    return this.say(`For <b>UI / interface work</b> he uses <b>Figma</b> and <b>Adobe XD</b> — the Kraftshala landing page on this site is a good example. He also hand-built this entire portfolio site himself. UI is one capable tool in a much broader kit, not the whole story.`);
+
   // --- GRACEFUL HUMAN FALLBACK ---
   this.chipsSet(['What is he good at?','His experience','Is he available?','Get his CV']);
   return this.say(this.pick([
@@ -605,7 +657,7 @@ const Z={
  toggle(state){this.open=state??!this.open;this.el.classList.toggle('open',this.open);
   if(this.open){SFX.chirp();if(!this.greeted){this.greeted=true;
    this.say(this.pick([`Hey, I'm <b>Zuvi</b> 👋 — Zuhaib's stand-in here. Ask me anything about his work, his story, or how he thinks. Or just tap a question below.`,`Hi! I'm <b>Zuvi</b> 👋 I know Zuhaib's work and journey well — ask away, or pick one of these to start.`]),500);
-   this.chipsSet(['Who is Zuhaib?','What is he good at?','Who has he worked with?','Why work with him?','Get his CV']);}}}
+   this.chipsSet(['Who is Zuhaib?','What tools does he use?','His experience','Is he available?','Get his CV']);}}}
 };
 Z.fab.addEventListener('click',()=>Z.toggle());
 document.getElementById('zuviClose').addEventListener('click',()=>Z.toggle(false));
