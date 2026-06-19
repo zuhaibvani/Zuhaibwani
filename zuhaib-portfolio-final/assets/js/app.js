@@ -113,7 +113,17 @@ let PDFQUEUE=[];
    PageUp/Down, Home/End), and a persistent copyright stamp. A browser must
    fetch a file to display it, so this deters casual lifting; it cannot make a
    public file un-saveable. */
-function pdfExitMax(){ document.querySelectorAll('.pdfv.maxed').forEach(v=>{ v.classList.remove('maxed'); if(v._relayout) setTimeout(v._relayout,60); }); document.body.classList.remove('pdf-maxed'); }
+function pdfExitMax(){
+  document.querySelectorAll('.pdfv.maxed').forEach(v=>{
+    v.classList.remove('maxed');
+    // move the element back to its original spot in the modal (it was portaled to <body>)
+    if(v._ph && v._ph.parentNode){ v._ph.parentNode.insertBefore(v, v._ph); }
+    // reset the Fullscreen button label
+    const fb=v.querySelector('.fsBtn'); if(fb) fb.textContent='\u2922 Fullscreen';
+    if(v._relayout) setTimeout(v._relayout,60);
+  });
+  document.body.classList.remove('pdf-maxed');
+}
 const PDF_PAD=16;
 function renderPDFs(){
   if(!window.pdfjsLib){ PDFQUEUE.forEach(({id})=>{const r=document.getElementById(id);const sc=r&&r.querySelector('.pdfv-scroll');if(sc)sc.innerHTML='<div class="pdfv-err">Viewer failed to load.</div>';}); PDFQUEUE=[]; return; }
@@ -211,20 +221,29 @@ function renderPDFs(){
     scroll.addEventListener('mousedown',()=>{ try{scroll.focus({preventScroll:true});}catch(_){scroll.focus();} });
     if(fsBtn){
       fsBtn.addEventListener('click',()=>{
-        // remember which page the user is on BEFORE the layout changes
+        const goingFull = !root.classList.contains('maxed');
         const keep=cur;
-        const on=root.classList.toggle('maxed'); document.body.classList.toggle('pdf-maxed', on);
-        fsBtn.textContent = on?'\u2921 Exit':'\u2922 Fullscreen';
-        // wait for the fixed-position layout to settle, then re-fit at the new container size
+        if(goingFull){
+          // A position:fixed element is trapped by the fixed #pm ancestor's containing block,
+          // so it renders relative to the scrolled modal (off-screen). Portal it to <body> to escape.
+          if(!root._ph){ root._ph=document.createComment('pdfv-home'); root.parentNode.insertBefore(root._ph, root); }
+          document.body.appendChild(root);
+          root.classList.add('maxed'); document.body.classList.add('pdf-maxed');
+          fsBtn.textContent='\u2921 Exit';
+        } else {
+          // restore into its original place in the modal
+          root.classList.remove('maxed'); document.body.classList.remove('pdf-maxed');
+          if(root._ph && root._ph.parentNode){ root._ph.parentNode.insertBefore(root, root._ph); }
+          fsBtn.textContent='\u2922 Fullscreen';
+        }
         requestAnimationFrame(()=>{ requestAnimationFrame(()=>{
           cur=keep;
-          relayout();                         // re-render at new size (paged: current page; scroll: all)
+          relayout();
           if(mode==='scroll'){
-            // jump (no smooth) straight to the page the user was reading
             const el=pages[cur-1];
             if(el) scroll.scrollTop=Math.max(0, el.offsetTop - PDF_PAD);
           } else {
-            scroll.scrollTop=0;               // paged = single page, top is correct
+            scroll.scrollTop=0;
           }
           try{scroll.focus({preventScroll:true});}catch(_){}
         }); });
