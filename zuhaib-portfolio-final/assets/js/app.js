@@ -126,50 +126,51 @@ function renderPDFs(){
     const prevBtn=root.querySelector('.pprev'), nextBtn=root.querySelector('.pnext');
     const curEl=root.querySelector('.pcur'), totEl=root.querySelector('.ptot');
     if(!scroll) return;
-    let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, baseVp=null;
-    function scaleFor(){
+    let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, ready=false;
+    // scale ONE page using its OWN intrinsic viewport (handles mixed page sizes/orientations)
+    function scaleForPage(vp){
       const w=Math.max(40, scroll.clientWidth-PDF_PAD*2);
-      if(mode==='scroll') return w/baseVp.width;
+      if(mode==='scroll') return w/vp.width;
       const h=Math.max(40, scroll.clientHeight-PDF_PAD*2);
-      return Math.min(w/baseVp.width, h/baseVp.height);
+      return Math.min(w/vp.width, h/vp.height);
     }
     function renderPage(n){
       if(rendered.has(n)||!doc) return; rendered.add(n);
       doc.getPage(n).then(page=>{
-        const sc=scaleFor(), dpr=window.devicePixelRatio||1;
-        const cssW=baseVp.width*sc, cssH=baseVp.height*sc;
+        const vp1=page.getViewport({scale:1});           // this page's real size
+        const sc=scaleForPage(vp1), dpr=window.devicePixelRatio||1;
+        const cssW=vp1.width*sc, cssH=vp1.height*sc;
         const rv=page.getViewport({scale:sc*dpr});
         const wrap=pages[n-1]; if(!wrap) return;
         const cv=document.createElement('canvas');
         cv.width=Math.floor(rv.width); cv.height=Math.floor(rv.height);
         cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
-        wrap.style.height='auto'; wrap.innerHTML=''; wrap.appendChild(cv);
-        page.render({canvasContext:cv.getContext('2d',{alpha:false}),viewport:rv});
+        wrap.style.height=(mode==='scroll'?cssH+'px':'auto'); wrap.innerHTML=''; wrap.appendChild(cv);
       }).catch(()=>{ rendered.delete(n); });
     }
-    const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'300px 0px'});
+    const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'600px 0px'});
     function applyPaged(){
       io.disconnect(); rendered.clear();
-      pages.forEach((el,i)=>{ el.innerHTML=''; el.style.height='auto'; el.style.display=(i===cur-1)?'block':'none'; });
+      pages.forEach((el,i)=>{ el.innerHTML=''; el.style.height='auto'; el.style.display=(i===cur-1)?'flex':'none'; });
       renderPage(cur); if(curEl)curEl.textContent=cur;
     }
     function applyScroll(){
-      const cssH=baseVp.height*scaleFor(); rendered.clear(); io.disconnect();
-      pages.forEach(el=>{ el.innerHTML=''; el.style.display='block'; el.style.height=cssH+'px'; io.observe(el); });
+      rendered.clear(); io.disconnect();
+      // give each page a provisional min-height (re-set precisely when its own page renders)
+      const provW=Math.max(40, scroll.clientWidth-PDF_PAD*2);
+      pages.forEach(el=>{ el.innerHTML=''; el.style.display='block'; el.style.minHeight=Math.round(provW*1.3)+'px'; el.style.height='auto'; io.observe(el); });
       if(curEl)curEl.textContent=cur;
     }
-    function relayout(){ if(!baseVp||!root.isConnected) return; (mode==='paged'?applyPaged:applyScroll)(); }
+    function relayout(){ if(!ready||!root.isConnected) return; (mode==='paged'?applyPaged:applyScroll)(); }
     root._relayout=relayout;
     function goTo(n){
       n=Math.max(1,Math.min(total,n)); cur=n;
       if(mode==='paged'){ applyPaged(); }
       else { const el=pages[n-1]; if(el) scroll.scrollTo({top:el.offsetTop-PDF_PAD,behavior:'smooth'}); if(curEl)curEl.textContent=n; }
     }
-    pdfjsLib.getDocument({url:src,isEvalSupported:false}).promise.then(d=>{ doc=d; total=d.numPages; if(totEl)totEl.textContent=total; return d.getPage(1); })
-      .then(page=>{
-        baseVp=page.getViewport({scale:1});
+    pdfjsLib.getDocument({url:src,isEvalSupported:false}).promise.then(d=>{ doc=d; total=d.numPages; if(totEl)totEl.textContent=total;
         for(let n=1;n<=total;n++){ const el=document.createElement('div'); el.className='pdfv-page'; el.dataset.pg=n; scroll.appendChild(el); pages.push(el); }
-        relayout();
+        ready=true; relayout();
         try{ if(root.closest('.pm')) scroll.focus({preventScroll:true}); }catch(_){}
       })
       .catch(()=>{ scroll.innerHTML='<div class="pdfv-err">Unable to display this document.</div>'; });
@@ -471,13 +472,13 @@ const Z={
 
   // --- CV ---
   if(rx(/\bcv\b|resume|curriculum/)){const cv=window.__cvHref||'assets/docs/Zuhaib_Wani_CV_Neutral.pdf';return this.say(this.pick([
-    `Of course — here's his CV: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Download Zuhaib's CV</a>. Two pages, no padding.`,
-    `Grab it here: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Zuhaib's CV (PDF)</a>. Everything that matters, nothing that doesn't.`]));}
+    `Here's his CV: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Download Zuhaib's CV (PDF)</a>. It covers his full experience, skills and key projects across visual, motion, 3D and real-time work.`,
+    `You can download it here: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Zuhaib's CV (PDF)</a> — full career history, tools and achievements in one place.`]));}
 
   // --- OFF-TOPIC GUARD (deflect politely instead of pretending to know) ---
   if(rx(/weather|temperature|forecast|raining|snowing|cricket|football|soccer|match score|stock price|bitcoin|crypto price|capital of|who is the (president|pm|prime minister)|what.?s the time|what day is|today.?s date|\brecipe\b|translate this|movie recommend|\bsong\b|lyrics|2\s*\+\s*2|meaning of life|how old are you|your age/))
     return this.say(this.pick([
-      `Ha — that one's outside my lane. I'm only set up to talk about <b>Zuhaib</b>: his work, skills, story and how to hire him. Try me on one of those? 🙂`,
+      `That's outside what I cover — I'm here specifically for <b>Zuhaib</b>: his work, skills, experience and how to get in touch. Ask me anything about those.`,
       `I'll be honest — I only know <b>Zuhaib's</b> world, so I can't help there. But ask about his projects, experience or availability and I'm all yours. The <b>✉️ Message tab</b> reaches him directly for anything else.`]));
 
   // --- ARE YOU AI / WHO ARE YOU (the bot itself) ---
@@ -583,7 +584,7 @@ const Z={
   // --- GREETINGS ---
   if(rx(/^(hi|hey|hello|yo|salaam|assalam|namaste|sup|good morning|good evening|hii+)\b/)||q==='hi'||q==='hey')
     return this.say(this.pick([
-      `Hey! 👋 I'm Zuvi — think of me as Zuhaib's stand-in here. Ask me about his work, his story, what he's good at, anything. What's on your mind?`,
+      `Hi! 👋 I'm Zuvi, Zuhaib's portfolio assistant. Ask me about his work, experience, skills or projects — whatever you'd like to know.`,
       `Hi there! 👋 I'm Zuvi. I know Zuhaib's work and his journey pretty well — what would you like to know?`]));
 
   // --- THANKS / BYE ---
@@ -596,8 +597,8 @@ const Z={
   // --- JOKE ---
   if(rx(/joke|funny|fun fact|something fun|make me laugh/))
     return this.say(this.pick([
-      `Zuhaib's idea of a horror story: <i>"The client loved it — but can we try it in Comic Sans?"</i> 😱 He survived. Barely.`,
-      `Fun fact: he renders watches so carefully that people instinctively check their own wrist. The Casio project is the main offender. ⌚😄`]));
+      `A fun one: his Casio Edifice render is so photoreal that people instinctively glance at their own wrist when they see it. Worth a look in the projects. ⌚`,
+      `Here's one — he taught himself the entire pipeline (brand, 3D, motion, real-time) from a small town in Kashmir with no studio scene nearby. The work did the talking. 🙂`]));
 
   // --- AI ---
   if(rx(/\bai\b|artificial|midjourney|chatgpt|automat/))
@@ -651,12 +652,12 @@ const Z={
   this.chipsSet(['What is he good at?','His experience','Is he available?','Get his CV']);
   return this.say(this.pick([
     `That's a fair question — I'm a small helper here, so I might not have every answer, but I know his <b>work</b>, <b>experience</b>, <b>skills</b> and <b>story</b> well. Try me on one of those, or use the <b>✉️ Message tab</b> to ask Zuhaib himself — he'll give you a proper answer.`,
-    `Hmm, I might be out of my depth on that one 🙂 But ask me about his <b>projects</b>, <b>journey</b>, <b>how he works</b>, or what he's <b>good at</b> — or send it straight to Zuhaib via the Message tab and he'll reply.`,
+    `I may not have that specific detail, but I can tell you about his <b>projects</b>, <b>experience</b>, <b>skills</b> and <b>how he works</b>. For anything else, the <b>✉️ Message tab</b> goes straight to Zuhaib.`,
     `Good question — and an honest answer: I only really know Zuhaib's world (his work, range and path). For anything beyond that, the <b>Message tab</b> goes right to him. Happy to help with the rest though!`]));
  },
  toggle(state){this.open=state??!this.open;this.el.classList.toggle('open',this.open);
   if(this.open){SFX.chirp();if(!this.greeted){this.greeted=true;
-   this.say(this.pick([`Hey, I'm <b>Zuvi</b> 👋 — Zuhaib's stand-in here. Ask me anything about his work, his story, or how he thinks. Or just tap a question below.`,`Hi! I'm <b>Zuvi</b> 👋 I know Zuhaib's work and journey well — ask away, or pick one of these to start.`]),500);
+   this.say(this.pick([`Hi, I'm <b>Zuvi</b> 👋 — Zuhaib's portfolio assistant. Ask me about his work, experience, skills or projects, or tap a question below.`,`Hello! I'm <b>Zuvi</b> 👋 I can tell you about Zuhaib's work, experience and skills — ask away, or pick one to start.`]),500);
    this.chipsSet(['Who is Zuhaib?','What tools does he use?','His experience','Is he available?','Get his CV']);}}}
 };
 Z.fab.addEventListener('click',()=>Z.toggle());
