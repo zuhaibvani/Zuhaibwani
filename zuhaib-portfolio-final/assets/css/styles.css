@@ -733,3 +733,23 @@ body.pdf-maxed{overflow:hidden}
 [data-theme="light"] .fbtn{color:#2b3240}
 [data-theme="light"] .fmeta span{border-color:#bcc4d0}
 
+
+/* ===== Availability "Open to" bar — light theme contrast fix ===== */
+[data-theme="light"] .avail-tag{
+  background:#e7f6ed;
+  border:1px solid #9ed8b4;
+  color:#0a7040;
+}
+[data-theme="light"] .avail-tag::before{
+  background:#0a7040;
+  box-shadow:0 0 0 3px rgba(10,112,64,.22);
+}
+[data-theme="light"] .avail-bar{
+  background:color-mix(in srgb,#0a7040 8%,#ffffff);
+  border:1px solid #9ed8b4;
+  color:#0a7040;
+  box-shadow:0 2px 14px rgba(10,112,64,.12),0 4px 20px rgba(15,23,42,.06);
+}
+[data-theme="light"] .avail-bar::before{ background:#0a7040; }
+/* the dot in brand + hero tag + zuvi status also use --live; ensure they're the darker green in light */
+[data-theme="light"]{ --live:#0a7040; }

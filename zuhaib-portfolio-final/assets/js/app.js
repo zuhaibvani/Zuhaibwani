@@ -146,6 +146,7 @@ function renderPDFs(){
         cv.width=Math.floor(rv.width); cv.height=Math.floor(rv.height);
         cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
         wrap.style.height=(mode==='scroll'?cssH+'px':'auto'); wrap.innerHTML=''; wrap.appendChild(cv);
+        page.render({canvasContext:cv.getContext('2d',{alpha:false}),viewport:rv});
       }).catch(()=>{ rendered.delete(n); });
     }
     const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'600px 0px'});
