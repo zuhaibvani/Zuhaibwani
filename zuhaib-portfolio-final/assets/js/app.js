@@ -137,14 +137,16 @@ function renderPDFs(){
     const curEl=root.querySelector('.pcur'), totEl=root.querySelector('.ptot');
     if(!scroll) return;
     let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, ready=false, lastAspect=1.3;
-    let zoom=1; const ZMIN=1, ZMAX=2.5, ZSTEP=0.25;
+    let zoom=1; const ZMAX=2.5, ZSTEP=0.25;
+    const zMin=()=> (mode==='scroll' ? 0.1 : 1);   // flip: never below fit; scroll: down to 10%
     const canvasMeta=new Map(); // page n -> {cv, baseW, baseH}  (lets zoom resize without re-rendering)
     const zout=root.querySelector('.zout'), zin=root.querySelector('.zin'), zlabel=root.querySelector('.zlabel');
     function setZoom(z){
-      z=Math.max(ZMIN,Math.min(ZMAX, Math.round(z*100)/100));
+      z=Math.max(zMin(),Math.min(ZMAX, Math.round(z*100)/100));
       zoom=z;
       canvasMeta.forEach(m=>{ m.cv.style.width=(m.baseW*zoom)+'px'; m.cv.style.height=(m.baseH*zoom)+'px'; });
-      root.classList.toggle('zoomed', zoom>1.02);
+      root.classList.toggle('zoomed', zoom>1.02);      // bigger than fit → enable panning
+      root.classList.toggle('zoomedout', zoom<0.98);   // smaller than fit → keep centered
       if(zlabel) zlabel.textContent=Math.round(zoom*100)+'%';
     }
     if(zout) zout.addEventListener('click',()=>{ setZoom(zoom-ZSTEP); SFX.tick(); });
@@ -154,11 +156,23 @@ function renderPDFs(){
     async function resolveDest(dest){
       try{
         let d=dest;
-        if(typeof d==='string') d=await doc.getDestination(d);
+        if(typeof d==='string'){
+          // try the proper named-destination lookup first
+          try{ d=await doc.getDestination(d); }catch(_){ d=null; }
+          // InDesign exports like "file.indd:Bookmark 3:3" — the trailing :N is the 1-based page
+          if(!d){
+            const m=String(dest).match(/:(\d+)\s*$/);
+            if(m){ const pg=parseInt(m[1],10); if(pg>=1) return pg; }
+            return null;
+          }
+        }
         if(!d||!d[0]) return null;
         const idx=await doc.getPageIndex(d[0]);
         return idx+1;
-      }catch(_){ return null; }
+      }catch(_){
+        const m=String(dest).match(/:(\d+)\s*$/);
+        return m?parseInt(m[1],10):null;
+      }
     }
     // converts a PDF-space link rect into percentages of the page (so it tracks zoom with pure CSS, no recompute)
     function annotRectPct(vp,rect){
@@ -198,7 +212,7 @@ function renderPDFs(){
         // ---- clickable links (TOC / index / external URLs) ----
         page.getAnnotations({intent:'display'}).then(anns=>{
           const vpL=page.getViewport({scale:1});
-          anns.filter(a=>a.subtype==='Link' && (a.dest||a.url||a.action)).forEach(a=>{
+          anns.filter(a=>(a.subtype==='Link'||a.subtype==='Widget') && (a.dest||a.url||a.action) && a.rect).forEach(a=>{
             const pct=annotRectPct(vpL,a.rect);
             const el=document.createElement(a.url?'a':'button');
             el.className='pdfv-link';
@@ -213,12 +227,12 @@ function renderPDFs(){
     }
     const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'600px 0px'});
     function applyPaged(){
-      io.disconnect(); rendered.clear(); canvasMeta.clear(); zoom=1; if(zlabel)zlabel.textContent='100%'; root.classList.remove('zoomed');
+      io.disconnect(); rendered.clear(); canvasMeta.clear(); zoom=1; if(zlabel)zlabel.textContent='100%'; root.classList.remove('zoomed','zoomedout');
       pages.forEach((el,i)=>{ el.innerHTML=''; el.style.height='auto'; el.style.display=(i===cur-1)?'flex':'none'; });
       renderPage(cur); if(curEl)curEl.textContent=cur;
     }
     function applyScroll(){
-      rendered.clear(); io.disconnect(); canvasMeta.clear(); zoom=1; if(zlabel)zlabel.textContent='100%'; root.classList.remove('zoomed');
+      rendered.clear(); io.disconnect(); canvasMeta.clear(); zoom=1; if(zlabel)zlabel.textContent='100%'; root.classList.remove('zoomed','zoomedout');
       // provisional height per page based on the last known aspect ratio (most PDFs are uniform)
       const provW=Math.max(40, scroll.clientWidth-PDF_PAD*2);
       const provH=Math.round(provW*lastAspect);

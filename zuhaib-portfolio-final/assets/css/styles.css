@@ -216,6 +216,10 @@ nav.scrolled{background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-fi
 .pdfv.zoomed .pdfv-scroll{overflow:auto;align-items:flex-start;cursor:grab}
 .pdfv.zoomed .pdfv-page{max-width:none}
 .pdfv.zoomed .pdfv-pagebox{max-width:none}
+/* zoomed OUT (scroll mode, below fit): page smaller than frame, stay centered */
+.pdfv.zoomedout .pdfv-page{max-width:none}
+.pdfv.zoomedout .pdfv-pagebox{max-width:none}
+.pdfv.zoomedout .pdfv-scroll{align-items:center}
 .pzoom{display:inline-flex;align-items:center;gap:4px;margin-right:2px}
 .pdfv-bar .pzoom button.pbtn{padding:6px 10px;min-width:34px;font-size:14px;line-height:1}
 .pdfv-bar .pzoom .zlabel{min-width:52px;font-size:12px;padding:6px 8px}
