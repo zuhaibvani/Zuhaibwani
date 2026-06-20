@@ -137,6 +137,36 @@ function renderPDFs(){
     const curEl=root.querySelector('.pcur'), totEl=root.querySelector('.ptot');
     if(!scroll) return;
     let doc=null, mode='paged', pages=[], rendered=new Set(), cur=1, total=0, ready=false, lastAspect=1.3;
+    let zoom=1; const ZMIN=1, ZMAX=2.5, ZSTEP=0.25;
+    const canvasMeta=new Map(); // page n -> {cv, baseW, baseH}  (lets zoom resize without re-rendering)
+    const zout=root.querySelector('.zout'), zin=root.querySelector('.zin'), zlabel=root.querySelector('.zlabel');
+    function setZoom(z){
+      z=Math.max(ZMIN,Math.min(ZMAX, Math.round(z*100)/100));
+      zoom=z;
+      canvasMeta.forEach(m=>{ m.cv.style.width=(m.baseW*zoom)+'px'; m.cv.style.height=(m.baseH*zoom)+'px'; });
+      root.classList.toggle('zoomed', zoom>1.02);
+      if(zlabel) zlabel.textContent=Math.round(zoom*100)+'%';
+    }
+    if(zout) zout.addEventListener('click',()=>{ setZoom(zoom-ZSTEP); SFX.tick(); });
+    if(zin) zin.addEventListener('click',()=>{ setZoom(zoom+ZSTEP); SFX.tick(); });
+    if(zlabel) zlabel.addEventListener('click',()=>{ setZoom(1); SFX.tick(); });
+    // resolves an internal PDF link "dest" (string named-dest, or explicit dest array) to a 1-based page number
+    async function resolveDest(dest){
+      try{
+        let d=dest;
+        if(typeof d==='string') d=await doc.getDestination(d);
+        if(!d||!d[0]) return null;
+        const idx=await doc.getPageIndex(d[0]);
+        return idx+1;
+      }catch(_){ return null; }
+    }
+    // converts a PDF-space link rect into percentages of the page (so it tracks zoom with pure CSS, no recompute)
+    function annotRectPct(vp,rect){
+      const r=vp.convertToViewportRectangle(rect);
+      const x1=Math.min(r[0],r[2]), x2=Math.max(r[0],r[2]);
+      const y1=Math.min(r[1],r[3]), y2=Math.max(r[1],r[3]);
+      return { l:x1/vp.width*100, t:y1/vp.height*100, w:(x2-x1)/vp.width*100, h:(y2-y1)/vp.height*100 };
+    }
     // scale ONE page using its OWN intrinsic viewport (handles mixed page sizes/orientations)
     function scaleForPage(vp){
       const w=Math.max(40, scroll.clientWidth-PDF_PAD*2);
@@ -153,23 +183,42 @@ function renderPDFs(){
         const cssW=vp1.width*sc, cssH=vp1.height*sc;
         const rv=page.getViewport({scale:sc*dpr});
         const wrap=pages[n-1]; if(!wrap) return;
+        // canvas-plus-links live in a relative box so links overlay the page and scale with zoom
+        const box=document.createElement('div'); box.className='pdfv-pagebox';
+        box.style.width=(cssW*zoom)+'px'; box.style.height=(cssH*zoom)+'px';
         const cv=document.createElement('canvas');
         cv.width=Math.floor(rv.width); cv.height=Math.floor(rv.height);
-        cv.style.width=cssW+'px'; cv.style.height=cssH+'px';
-        if(mode==='scroll'){ wrap.style.minHeight='0px'; wrap.style.height=cssH+'px'; }
+        cv.style.width='100%'; cv.style.height='100%';
+        box.appendChild(cv);
+        if(mode==='scroll'){ wrap.style.minHeight='0px'; wrap.style.height='auto'; }
         else { wrap.style.minHeight='0px'; wrap.style.height='auto'; }
-        wrap.innerHTML=''; wrap.appendChild(cv);
+        wrap.innerHTML=''; wrap.appendChild(box);
+        canvasMeta.set(n,{cv:box, baseW:cssW, baseH:cssH});  // box is what we resize on zoom
         page.render({canvasContext:cv.getContext('2d',{alpha:false}),viewport:rv});
+        // ---- clickable links (TOC / index / external URLs) ----
+        page.getAnnotations({intent:'display'}).then(anns=>{
+          const vpL=page.getViewport({scale:1});
+          anns.filter(a=>a.subtype==='Link' && (a.dest||a.url||a.action)).forEach(a=>{
+            const pct=annotRectPct(vpL,a.rect);
+            const el=document.createElement(a.url?'a':'button');
+            el.className='pdfv-link';
+            el.style.cssText=`left:${pct.l}%;top:${pct.t}%;width:${pct.w}%;height:${pct.h}%`;
+            if(a.url){ el.href=a.url; el.target='_blank'; el.rel='noopener noreferrer'; el.setAttribute('aria-label','Open link'); }
+            else { el.type='button'; el.setAttribute('aria-label','Go to section');
+              el.addEventListener('click',async()=>{ const p=await resolveDest(a.dest); if(p){ goTo(p); SFX.tick(); } }); }
+            box.appendChild(el);
+          });
+        }).catch(()=>{});
       }).catch(()=>{ rendered.delete(n); });
     }
     const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting) renderPage(+e.target.dataset.pg); }); },{root:scroll,rootMargin:'600px 0px'});
     function applyPaged(){
-      io.disconnect(); rendered.clear();
+      io.disconnect(); rendered.clear(); canvasMeta.clear(); zoom=1; if(zlabel)zlabel.textContent='100%'; root.classList.remove('zoomed');
       pages.forEach((el,i)=>{ el.innerHTML=''; el.style.height='auto'; el.style.display=(i===cur-1)?'flex':'none'; });
       renderPage(cur); if(curEl)curEl.textContent=cur;
     }
     function applyScroll(){
-      rendered.clear(); io.disconnect();
+      rendered.clear(); io.disconnect(); canvasMeta.clear(); zoom=1; if(zlabel)zlabel.textContent='100%'; root.classList.remove('zoomed');
       // provisional height per page based on the last known aspect ratio (most PDFs are uniform)
       const provW=Math.max(40, scroll.clientWidth-PDF_PAD*2);
       const provH=Math.round(provW*lastAspect);
@@ -209,8 +258,20 @@ function renderPDFs(){
     }
     let sx=0,sy=0,sti=0;
     stage.addEventListener('touchstart',e=>{ const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY; sti=Date.now(); },{passive:true});
-    stage.addEventListener('touchend',e=>{ if(mode!=='paged')return; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy;
+    stage.addEventListener('touchend',e=>{ if(mode!=='paged'||zoom>1.02||e.changedTouches.length>1)return; const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy;
       if(Math.abs(dx)>42 && Math.abs(dx)>Math.abs(dy)*1.4 && Date.now()-sti<700){ goTo(cur+(dx<0?1:-1)); SFX.tick(); } },{passive:true});
+
+    // ---- ZOOM: Ctrl/Cmd + wheel (desktop) ----
+    scroll.addEventListener('wheel',e=>{ if(e.ctrlKey||e.metaKey){ e.preventDefault(); setZoom(zoom + (e.deltaY<0?ZSTEP:-ZSTEP)); } },{passive:false});
+
+    // ---- ZOOM: pinch (mobile) + double-tap to toggle 1x/2x ----
+    let pinchBase=0, lastTap=0;
+    function dist(t){ const a=t[0],b=t[1]; return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+    scroll.addEventListener('touchstart',e=>{ if(e.touches.length===2){ pinchBase=dist(e.touches); } },{passive:true});
+    scroll.addEventListener('touchmove',e=>{ if(e.touches.length===2 && pinchBase){ e.preventDefault(); const r=dist(e.touches)/pinchBase; setZoom(zoom*r); pinchBase=dist(e.touches); } },{passive:false});
+    scroll.addEventListener('touchend',e=>{ if(e.touches.length<2) pinchBase=0;
+      if(e.changedTouches.length===1 && e.touches.length===0){ const now=Date.now(); if(now-lastTap<300){ setZoom(zoom>1.02?1:2); SFX.tick(); lastTap=0; } else lastTap=now; } },{passive:true});
+
     scroll.setAttribute('tabindex','0');
     scroll.addEventListener('keydown',e=>{
       if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();goTo(cur+1);}
@@ -298,6 +359,11 @@ function openProject(id){
             <button class="pbtn pnext" aria-label="Next page">›</button>
           </div>
           <div class="pacts">
+            <div class="pzoom">
+              <button class="pbtn zout" aria-label="Zoom out">−</button>
+              <button class="pbtn zlabel" aria-label="Reset zoom" title="Reset zoom">100%</button>
+              <button class="pbtn zin" aria-label="Zoom in">+</button>
+            </div>
             <button class="pbtn pmode">⊟ Scroll</button>
             <button class="pbtn fsBtn">⤢ Fullscreen</button>
           </div>
