@@ -1,0 +1,13 @@
+{
+  "name": "zuhaib-portfolio",
+  "version": "1.0.0",
+  "description": "Zuhaib Wani's portfolio website with Vercel Analytics",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Open index.html in browser'",
+    "build": "echo 'Static site - no build step needed'"
+  },
+  "devDependencies": {
+    "@vercel/analytics": "^1.4.1"
+  }
+}
