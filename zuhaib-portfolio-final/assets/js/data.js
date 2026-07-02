@@ -44,6 +44,27 @@ const P=[
  '<strong>Scripted where it counts.</strong> I wrote custom ExtendScript to scatter 28 chaos cards with randomised position, rotation and staggered entrances \u2014 minutes instead of an hour of manual layer work \u2014 and Blender Python to lock down Eevee render settings, keyframes and output in one run. Every creative decision stayed manual and art-directed; the scripts only removed the repetitive setup and the room for human error.',
  '<strong>Built on constrained hardware.</strong> The whole pipeline ran on a GTX 1060 with 6GB of VRAM. Eevee instead of Cycles, transparent alpha renders instead of full 3D environments, only two genuine 3D shots, and stylised AE smoke instead of simulation kept it fast with no loss of quality. A no-gradient brand system and a modest GPU pushed the same lesson \u2014 the constraints make the work sharper.'],
  groups:[]},
+{id:'presentation',cats:['ui'],catLabel:'Editorial · Presentation',
+ covers:{all:'assets/img/presentation-1.jpg'},
+ title:'Presentation Template System — InDesign',
+ blurb:'A reusable, on-brand deck template built in InDesign — page through the real document below.',
+ role:'Presentation Designer',type:'Template system',
+ tools:['Adobe InDesign'],
+ deliver:['Presentation template','Master-page grid','Editorial layout system'],
+ hero:{type:'pdf',src:'assets/docs/presentation-interactive.pdf',poster:'assets/img/presentation-1.jpg'},
+ desc:['<strong>A presentation template, not a one-off deck.</strong> This is a reusable presentation system built in Adobe InDesign — a structured template with a consistent editorial grid and master-page architecture, designed so professional, on-brand client decks can be produced quickly and consistently. The actual document is embedded above; page through it to see the system in use.',
+ '<strong>Why build a system instead of a single deck.</strong> Anyone can lay out one good slide. The harder, more valuable problem is a structure that keeps every page on-brand and on-grid no matter who fills it in or how long the deck runs. Master pages carry the repeating elements, and a fixed underlying grid governs where everything sits — so consistency is built into the file rather than depending on the person using it.',
+ '<strong>Editorial thinking applied to decks.</strong> Each spread is composed with real layout discipline — clear hierarchy, generous structure, and a deliberate rhythm between text-led and image-led pages — so the deck reads like a designed editorial document rather than a default template. Type, spacing and image treatment are all set up to stay coherent from the cover to the final page.',
+ '<strong>Built on real experience.</strong> Presentation design is a core part of my practice — 30+ decks delivered for international clients across very different industries and audiences. This template distils that experience into a repeatable structure, so the quality of a carefully crafted bespoke deck becomes something that can be produced reliably, at speed.'],
+ groups:[
+  {name:'Spreads',items:[
+   {type:'img',src:'assets/img/presentation-1.jpg',cap:'Cover spread — the template entry point',wide:1},
+   {type:'img',src:'assets/img/presentation-2.jpg',cap:'Editorial spread — structured text-and-image layout on the grid'},
+   {type:'img',src:'assets/img/presentation-3.jpg',cap:'Image-led layout — full-bleed visual with minimal type'},
+   {type:'img',src:'assets/img/presentation-4.jpg',cap:'Mixed-media spread — balancing data, image and copy'},
+   {type:'img',src:'assets/img/presentation-5.jpg',cap:'Content architecture — hierarchy across a dense page'},
+   {type:'img',src:'assets/img/presentation-6.jpg',cap:'Process and approach page — the system explained',wide:1}]}
+ ]},
 {id:'ue5',cats:['3d'],catLabel:'Real-Time · UE5',featured:1,
  covers:{all:'assets/img/ue5-environment.jpg'},
  title:'Gamified Real-Time Environment — Unreal Engine 5',
@@ -181,22 +202,6 @@ const P=[
    {type:'img',src:'assets/img/postle-boy1.jpg',cap:'Rider uniform — the brand on the street'},
    {type:'img',src:'assets/img/postle-mockup.jpg',cap:'Branded packaging in hand — the customer touchpoint'}]}
  ]},
-{id:'cosmetic',cats:['brand'],catLabel:'Packaging',
- covers:{all:'assets/img/cosmetic-1.jpg'},
- title:'Cosmetic Product Packaging Design',
- blurb:'Shelf presence in under two seconds — type, colour, and restraint doing all the talking.',
- role:'Packaging Designer',type:'Client project',
- tools:['Illustrator','Photoshop'],
- deliver:['Label system','Packaging design'],
- hero:{type:'img',src:'assets/img/cosmetic-1.jpg'},
- desc:['<strong>Designing for the two-second decision.</strong> This is packaging and label design for a cosmetic product line — the system that has to win a buyer\'s attention on a crowded retail shelf. Cosmetic packaging is a specific discipline: it has to communicate category, quality and brand personality almost instantly, from across an aisle, before a customer has consciously decided to look.',
- '<strong>Why restraint is the whole skill.</strong> The temptation in beauty packaging is to add — more colour, more ornament, more claims. But shelf impact comes from clarity, not noise. The work was to establish a firm typographic hierarchy so the eye lands in the right order, a disciplined colour system that signals the product\'s positioning, and enough white space that the design reads as considered and premium rather than busy and cheap. Everything that didn\'t earn its place was removed.',
- '<strong>Made for the material, not the screen.</strong> A label is a physical object — it wraps a curved surface, catches light, and gets handled. The layout was built with that in mind: print-aware spacing, legibility at actual size, and a structure that holds up whether it\'s seen at shelf distance or picked up and read. The result is a label system designed to earn the glance first, then reward the closer look.'],
- groups:[
-  {name:'Packaging',items:[
-   {type:'img',src:'assets/img/cosmetic-2.jpg',cap:'Line flatlay — the colour and pattern system across the range',wide:1},
-   {type:'img',src:'assets/img/cosmetic-3.jpg',cap:'Label architecture — typographic hierarchy and print spec'}]}
- ]},
 {id:'kraftshala',cats:['ui'],catLabel:'UI · Landing Page',
  covers:{all:'assets/img/kraftshala-ui.jpg'},
  title:'Kraftshala — EdTech Landing Page UI',
@@ -209,28 +214,7 @@ const P=[
  '<strong>The page is a persuasion sequence, read top to bottom.</strong> It opens with a hero that states the offer plainly, then proves it with real session recordings so the value is shown rather than claimed, backs that with a stats row and credible speaker faces to establish authority, and closes with a clear call to action. The structure mirrors how a person actually decides — interest, proof, trust, action.',
  '<strong>Extending a brand without copying it.</strong> The hardest constraint was making the page feel unmistakably part of Kraftshala while still reading as its own focused product, not a generic sub-page — inheriting the parent brand&rsquo;s colour and voice but giving this page its own confident layout system.',
  '<strong>The craft decisions.</strong> A layered hero — \"LIVE\" set bold, \"SERIES\" in an amber italic for energy; a stats row that mixes filled and outlined cards to create rhythm instead of a flat grid; and hexagonal speaker crops in place of default circular avatars, a small move that makes the page feel designed rather than templated. Structured and handed off dev-ready.'],
- groups:[]},
-{id:'presentation',cats:['ui'],catLabel:'Editorial · Presentation',
- covers:{all:'assets/img/presentation-1.jpg'},
- title:'Presentation Template System — InDesign',
- blurb:'A reusable, on-brand deck template built in InDesign — page through the real document below.',
- role:'Presentation Designer',type:'Template system',
- tools:['Adobe InDesign'],
- deliver:['Presentation template','Master-page grid','Editorial layout system'],
- hero:{type:'pdf',src:'assets/docs/presentation-interactive.pdf',poster:'assets/img/presentation-1.jpg'},
- desc:['<strong>A presentation template, not a one-off deck.</strong> This is a reusable presentation system built in Adobe InDesign — a structured template with a consistent editorial grid and master-page architecture, designed so professional, on-brand client decks can be produced quickly and consistently. The actual document is embedded above; page through it to see the system in use.',
- '<strong>Why build a system instead of a single deck.</strong> Anyone can lay out one good slide. The harder, more valuable problem is a structure that keeps every page on-brand and on-grid no matter who fills it in or how long the deck runs. Master pages carry the repeating elements, and a fixed underlying grid governs where everything sits — so consistency is built into the file rather than depending on the person using it.',
- '<strong>Editorial thinking applied to decks.</strong> Each spread is composed with real layout discipline — clear hierarchy, generous structure, and a deliberate rhythm between text-led and image-led pages — so the deck reads like a designed editorial document rather than a default template. Type, spacing and image treatment are all set up to stay coherent from the cover to the final page.',
- '<strong>Built on real experience.</strong> Presentation design is a core part of my practice — 30+ decks delivered for international clients across very different industries and audiences. This template distils that experience into a repeatable structure, so the quality of a carefully crafted bespoke deck becomes something that can be produced reliably, at speed.'],
- groups:[
-  {name:'Spreads',items:[
-   {type:'img',src:'assets/img/presentation-1.jpg',cap:'Cover spread — the template entry point',wide:1},
-   {type:'img',src:'assets/img/presentation-2.jpg',cap:'Editorial spread — structured text-and-image layout on the grid'},
-   {type:'img',src:'assets/img/presentation-3.jpg',cap:'Image-led layout — full-bleed visual with minimal type'},
-   {type:'img',src:'assets/img/presentation-4.jpg',cap:'Mixed-media spread — balancing data, image and copy'},
-   {type:'img',src:'assets/img/presentation-5.jpg',cap:'Content architecture — hierarchy across a dense page'},
-   {type:'img',src:'assets/img/presentation-6.jpg',cap:'Process and approach page — the system explained',wide:1}]}
- ]}
+ groups:[]}
 ];
 
 /* ============ TESTIMONIALS ============ */
