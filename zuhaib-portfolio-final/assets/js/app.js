@@ -508,7 +508,7 @@ toTop.addEventListener('click',()=>{scrollTo({top:0,behavior:'smooth'});SFX.pop(
 /* ZUVI BUBBLE — pops 1-2 times to explain itself */
 (function(){
   const bub=document.getElementById('zuvi-bubble'),txt=document.getElementById('bubbleTxt'),bx=document.getElementById('bubbleX');
-  let shown=0;const lines=["Hi! I'm <b>Zuvi</b> 👋 Ask me anything about Zuhaib.","Psst — I can open projects or grab his CV for you. Tap me!"];
+  let shown=0;const lines=["Hi! I'm <b>Zuvi</b> 👋 Ask me anything — I'm Zuhaib's quick-chat stand-in.","Psst — I can open projects or grab my CV for you. Tap me!"];
   function pop(i){if(Z.open||sessionStorage.getItem('zuvi_seen'))return;txt.innerHTML=lines[i];bub.classList.add('show');SFX.chirp();
     setTimeout(()=>bub.classList.remove('show'),6000);}
   bx.addEventListener('click',()=>{bub.classList.remove('show');sessionStorage.setItem('zuvi_seen','1');});
@@ -554,12 +554,45 @@ document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
  init();draw();if(reduce)cancelAnimationFrame(raf);
  addEventListener('resize',()=>{cancelAnimationFrame(raf);init();if(!reduce)draw();});})();
 
+/* ============ ZUVI KNOWLEDGE — single source of truth for full-list answers ============
+   These mirror the CV/site exactly. When Zuhaib's skills, tools, or certs change,
+   update here so the bot never drifts out of sync with the actual CV/website. */
+const SKILLS_FULL = [
+ ["Visual &amp; Graphic Design","Brand Identity, Visual Design, Graphic Design, Art Direction, Typography, Color Theory, Layout Design, Visual Storytelling, Design Systems, Campaign Design, Social Media Design, Print Design"],
+ ["Motion &amp; Video","Motion Graphics, 2D Animation, Video Editing, Storyboarding, Explainer Videos — After Effects, Premiere Pro"],
+ ["3D Visualization","3D Modeling, Texturing, UV Mapping, PBR Workflows, Photorealistic Rendering, Product Visualization, Archviz, Environment Design — Blender, 3ds Max"],
+ ["Real-Time &amp; Interactive","Gamification Design, Walkthrough Experiences, Blueprint Logic, Level Design, Niagara FX, Sequencer, Dynamic Lighting — Unreal Engine 5, Unity"],
+ ["UI &amp; Web","UI Design, Wireframing, Prototyping, Design Systems — Figma, Adobe XD; basic HTML/CSS"],
+ ["Presentation &amp; Communication Design","PowerPoint Deck Design, Slide Layout &amp; Typography, Data Visualization, Diagram &amp; Iconography Design, Infographic Design, Web Standards"],
+ ["AI-Assisted Design","Midjourney, Runway, Firefly, Gemini, Kling, Google AI Studio — image/video generation; Claude, ChatGPT, Kimi — AI assistants and automation; MCP-based workflow automation in Blender and Unreal Engine"],
+ ["Supporting Tools","Autodesk Maya, ZBrush, Substance Painter, NVIDIA Omniverse"],
+];
+const CERTS_FULL = ["Complete Figma Course: Web & Mobile Projects from Scratch","Master Digital Product Design: UX Research & UI Design",
+ "Unreal Engine 5 – Lighting, Fog & Post Processing","Blender & After Effects VFX Masterclass","Character Animation with Blender",
+ "Cinematography and Filmmaking","Diploma in Graphic Designing","Leading Hybrid and Remote Teams","Systems Thinking+","Introduction to Design Thinking"];
+// order matters — most specific first, so e.g. "ai" is caught before generic "design" words
+const SKILL_CATEGORY_MAP = [
+ [/\bai\b|\bmcp\b|midjourney|firefly|runway|claude|gemini|\bkling\b|\bkimi\b|chatgpt|google ai studio|generative/, "AI-Assisted Design"],
+ [/\b3d\b|blender|3ds max|archviz|\bpbr\b|texturing|uv mapping|sculpt/, "3D Visualization"],
+ [/real.?time|unreal|\bue5\b|blueprint|gamif|niagara|walkthrough/, "Real-Time &amp; Interactive"],
+ [/motion|\bvideo\b|animation|storyboard|after effects|premiere|editing/, "Motion &amp; Video"],
+ [/\bui\b|\bux\b|figma|adobe xd|wireframe|prototyp|interaction design|\bhtml\b|\bcss\b/, "UI &amp; Web"],
+ [/presentation|powerpoint|\bdeck\b|infographic|\bslide/, "Presentation &amp; Communication Design"],
+ [/\bmaya\b|zbrush|substance painter|omniverse|supporting tools/, "Supporting Tools"],
+ [/brand|graphic design|visual design|identity|typograph|campaign/, "Visual &amp; Graphic Design"],
+];
+function findSkillCategory(q){
+  for(const [re,label] of SKILL_CATEGORY_MAP){ if(re.test(q)){ const hit=SKILLS_FULL.find(([cat])=>cat===label); if(hit) return hit; } }
+  return null;
+}
+
 /* ============ ZUVI ============ */
 const Z={
  open:false,
  el:document.getElementById('zuvi'),fab:document.getElementById('zuvi-fab'),
  body:document.getElementById('zBody'),chips:document.getElementById('zChips'),
  greeted:false,
+ lastTopic:null,
  say(html,delay=600){const t=document.createElement('div');t.className='z-msg bot z-typing';t.innerHTML='<i></i><i></i><i></i>';this.body.appendChild(t);this.scroll();
   setTimeout(()=>{t.classList.remove('z-typing');t.innerHTML=html;SFX.chirp();this.scroll();},delay);},
  user(txt){const d=document.createElement('div');d.className='z-msg user';d.textContent=txt;this.body.appendChild(d);this.scroll();},
@@ -573,6 +606,16 @@ const Z={
   const has=(...w)=>w.some(x=>q.includes(x));
   const rx=re=>re.test(q);
   const wantsOpen=rx(/\b(show|open|see|view|pull up|let me see|can i see)\b/)||q.length<22;
+  const wantsFull=rx(/\ball\b|\bevery(thing)?\b|\bfull\b|\bcomplete\b|\bentire\b|\blist\b/);
+  const topicSkill=rx(/skill|tool|software|what can|disciplin|expert|good at|capab|stack/);
+  const topicProject=rx(/project|portfolio|work|show|gallery|made|created|built/);
+  const topicCert=rx(/certif|courses?|masterclass/);
+  // a bare follow-up like "give me the full list" repeats no topic word — use what we were just discussing
+  if(wantsFull && !topicSkill && !topicProject && !topicCert){
+    if(this.lastTopic==='skills') return this.say(`Here's the full list, exactly as it stands on the CV/site:<br><br>${SKILLS_FULL.map(([c,items])=>`<b>${c}:</b> ${items}`).join('<br>')}<br><br>That's everything — ask me about any one of these and I'll go deeper.`);
+    if(this.lastTopic==='projects') return this.say(`Here's every project on the site, in gallery order:<br><br>${P.map((p,i)=>`${i+1}. ${p.title}`).join('<br>')}<br><br>Say a name and I'll open it.`);
+    if(this.lastTopic==='certs') return this.say(`Full list of certifications:<br><br>${CERTS_FULL.map(c=>`• ${c}`).join('<br>')}`);
+  }
 
   // --- direct project requests (only when clearly asking to SEE one) ---
   if(rx(/ue5|unreal|real.?time|gamif/)&&(wantsOpen||has('project','environment')))return open('ue5','the UE5 Real-Time Environment');
@@ -586,153 +629,177 @@ const Z={
 
   // --- CV ---
   if(rx(/\bcv\b|resume|curriculum/)){const cv=window.__cvHref||'assets/docs/Zuhaib_Wani_CV_Neutral.pdf';return this.say(this.pick([
-    `Here's his CV: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Download Zuhaib's CV (PDF)</a>. It covers his full experience, skills and key projects across visual, motion, 3D and real-time work.`,
-    `You can download it here: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Zuhaib's CV (PDF)</a> — full career history, tools and achievements in one place.`]));}
+    `Here's my CV: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 Download my CV (PDF)</a>. It covers my full experience, skills and key projects across visual, motion, 3D and real-time work.`,
+    `You can download it here: <a href="${cv}" download target="_blank" rel="noopener noreferrer">📄 My CV (PDF)</a> — full career history, tools and achievements in one place.`]));}
 
   // --- OFF-TOPIC GUARD (deflect politely instead of pretending to know) ---
   if(rx(/weather|temperature|forecast|raining|snowing|cricket|football|soccer|match score|stock price|bitcoin|crypto price|capital of|who is the (president|pm|prime minister)|what.?s the time|what day is|today.?s date|\brecipe\b|translate this|movie recommend|\bsong\b|lyrics|2\s*\+\s*2|meaning of life|how old are you|your age/))
     return this.say(this.pick([
-      `That's outside what I cover — I'm here specifically for <b>Zuhaib</b>: his work, skills, experience and how to get in touch. Ask me anything about those.`,
-      `I'll be honest — I only know <b>Zuhaib's</b> world, so I can't help there. But ask about his projects, experience or availability and I'm all yours. The <b>✉️ Message tab</b> reaches him directly for anything else.`]));
+      `That's outside what I cover — I'm here specifically for my own work, skills, experience and how to get in touch. Ask me anything about those.`,
+      `I'll be honest — I only know my own world, so I can't help there. But ask about my projects, experience or availability and I'm all yours. The <b>✉️ Message tab</b> reaches me directly for anything else.`]));
 
   // --- ARE YOU AI / WHO ARE YOU (the bot itself) ---
   if(rx(/are you (a |an )?(ai|bot|robot|human|real|chatgpt|llm|gpt)|you a bot|you real|what are you\b|who made you|how do you work/))
     return this.say(this.pick([
-      `I'm <b>Zuvi</b> — a small, hand-scripted guide Zuhaib built into this site. Not a live AI and no big model behind me: just curated answers about his work, so I'm fast, free and never make things up. For anything I can't cover, the <b>✉️ Message tab</b> goes straight to the real Zuhaib.`,
-      `Just <b>Zuvi</b> 🙂 a lightweight scripted helper, not a live AI. Zuhaib kept me deliberately simple — I know his work, story and skills cold, and hand off to him directly for the rest.`]));
+      `I'm <b>Zuvi</b> — a lightweight, hand-scripted stand-in Zuhaib built into this site so you can chat with a quick version of me. Not a live AI, no big model behind me: just curated answers about my own work, so I'm fast, free and never make things up. For anything I can't cover, the <b>✉️ Message tab</b> reaches me directly for a real conversation.`,
+      `Think of me as <b>Zuvi</b> 🙂 — Zuhaib's scripted stand-in, not a live AI. I know my work, story and skills cold, and the <b>Message tab</b> reaches me directly for anything deeper.`]));
 
   // --- SALARY / RATE / BUDGET ---
   if(rx(/salary|\brate\b|rates|charge|how much|budget|\bprice\b|pricing|\bpay\b|compensation|\bctc\b|\blpa\b|\bfee\b|day rate|cost to hire/))
     return this.say(this.pick([
-      `He keeps numbers to a real conversation — they depend on scope, mode (freelance vs full-time) and timeline. Quickest path: drop the details in the <b>✉️ Message tab</b> and he'll come back with something specific and fair.`,
-      `Fair to ask — but rate and salary depend on the brief, so he talks specifics directly rather than posting a figure. Tell him what you have in mind via the <b>Message tab</b> and he'll reply quickly.`]));
+      `I keep numbers to a real conversation — they depend on scope, mode (freelance vs full-time) and timeline. Quickest path: drop the details in the <b>✉️ Message tab</b> and I'll come back with something specific and fair.`,
+      `Fair to ask — but rate and salary depend on the brief, so I'd rather talk specifics directly than post a figure. Tell me what you have in mind via the <b>Message tab</b> and I'll reply quickly.`]));
 
   // --- AVAILABILITY / ROLES / NOTICE / FULL-TIME vs FREELANCE / REMOTE ---
   if(rx(/full.?time|freelance|contract|notice period|start date|when can he (start|join)|joining|relocat|on.?site|\bremote\b|hybrid|\broles?\b|position|opening|\bjob\b|art director|creative lead|what.*looking for|hiring him/))
     return this.say(this.pick([
-      `He's open to both <b>senior creative roles</b> (Senior Designer, Creative Lead, Art Director) and <b>freelance / contract</b> work — and he's flexible on setup: <b>remote, hybrid or on-site</b> all work for him, including <b>Delhi NCR</b>. Available to start soon — that green dot up top means he's around. Use the <b>Message tab</b> to talk specifics.`,
-      `Two tracks: full-time <b>senior creative / lead / art-director</b> roles, and freelance projects alongside. He's open to <b>remote, hybrid or on-site</b> (including <b>Delhi NCR</b>) and can start quickly. Drop a note via the <b>Message tab</b> and he'll line up a call.`]));
+      `I'm open to both <b>senior creative roles</b> (Senior Designer, Creative Lead, Art Director) and <b>freelance / contract</b> work — and I'm flexible on setup: <b>remote, hybrid or on-site</b> all work for me, including <b>Delhi NCR</b>. Available to start soon — that green dot up top means I'm around. Use the <b>Message tab</b> to talk specifics.`,
+      `Two tracks: full-time <b>senior creative / lead / art-director</b> roles, and freelance projects alongside. I'm open to <b>remote, hybrid or on-site</b> (including <b>Delhi NCR</b>) and can start quickly. Drop a note via the <b>Message tab</b> and I'll line up a call.`]));
 
   // --- CLIENTS / WHO HAS HE WORKED FOR / REFERENCES ---
   if(rx(/clients?|worked (with|for|alongside)|companies he|brands? he|who has he work|who.?s he worked|references|testimonial|recommendation/)&&!has('culture','collaborat'))
     return this.say(this.pick([
       `A real mix — a global engineering consultancy (<b>Mott MacDonald</b>), an immersive-tech team building real-time work, and freelance brand projects for startups and names like <b>Philips / Signify</b> through an agency. Big corporate to scrappy startup, all in one CV. There are also seven named recommendations further down the page.`,
-      `From multinational (<b>Mott MacDonald</b>) to immersive tech to direct freelance for founders and brands. Scroll to the <b>recommendations</b> section for what colleagues and clients actually say about working with him.`]));
+      `From multinational (<b>Mott MacDonald</b>) to immersive tech to direct freelance for founders and brands. Scroll to the <b>recommendations</b> section for what colleagues and clients actually say about working with me.`]));
 
   // --- EDUCATION / SELF-TAUGHT ---
   if(rx(/educat|degree|study|studied|college|university|qualif|self.?taught|how did he learn|where did he learn/))
     return this.say(this.pick([
-      `Largely <b>self-taught</b> on the craft — he built the skill set himself in Sopore, far from any studio scene, alongside a Bachelor's degree from the University of Kashmir. The portfolio is the real qualification: seven years of work that speaks for itself.`,
-      `A self-taught designer (with a BA from the University of Kashmir) — the kind who learned by making, not in design school. Small town, no shortcuts, global-standard output.`]));
+      `Largely <b>self-taught</b> on the craft — I built the skill set myself in Sopore, far from any studio scene, alongside a Bachelor's degree from the University of Kashmir. The portfolio is the real qualification: seven years of work that speaks for itself.`,
+      `I'm a self-taught designer (with a BA from the University of Kashmir) — the kind who learned by making, not in design school. Small town, no shortcuts, global-standard output.`]));
+
+  // --- CERTIFICATIONS ---
+  if(rx(/certif|courses?|masterclass/)){
+    this.lastTopic='certs';
+    return this.say(wantsFull
+      ? `Full list of certifications:<br><br>${CERTS_FULL.map(c=>`• ${c}`).join('<br>')}`
+      : `I've taken targeted courses to back up hands-on experience — Figma, UX/UI design, Unreal Engine 5 lighting, Blender/After Effects VFX, character animation, cinematography, and a few on leading remote teams. Ask for the "full list" and I'll give you every one by name.`);
+  }
 
   // --- LANGUAGES ---
   if(rx(/languages?|speaks?|multilingual|\benglish\b|\bhindi\b|\burdu\b/))
-    return this.say(`He works in <b>English</b> for all professional projects, and also speaks <b>Hindi</b>, <b>Urdu</b> and <b>Kashmiri</b>. Communication has never been the bottleneck — remote teams across time zones included.`);
+    return this.say(`I work in <b>English</b> (fluent) for all professional projects, and also speak <b>Hindi</b> (fluent) and <b>Urdu</b> (native). Communication has never been the bottleneck — remote teams across time zones included.`);
 
   // --- SPECIFIC SOFTWARE ---
-  if(rx(/blender|cycles|eevee/))return this.say(`<b>Blender</b> is one of his core tools — full pipeline: modelling, PBR texturing, lighting, animation and compositing. The Casio film and the Medieval Windmill game asset are both built start-to-finish in Blender.`);
-  if(rx(/after effects|\bae\b|premiere|\bediting\b/))return this.say(`Motion is a big part of his work — <b>After Effects</b> and <b>Premiere Pro</b> for motion graphics, 2D animation and editing. The Now Engage launch film shows the 2D-motion-plus-3D side.`);
-  if(rx(/unreal|\bue5\b|blueprint|game engine/))return this.say(`<b>Unreal Engine 5</b> is his real-time discipline — interactive walkthroughs, environments and Blueprint logic. Open the <b>UE5 Real-Time Environment</b> project to see it.`);
-  if(rx(/\bfigma\b|adobe xd|interface design/))return this.say(`For UI he works in <b>Figma</b> (and Adobe XD) — the Kraftshala landing page is a good example. UI is one tool in a broader kit rather than his whole identity.`);
+  if(rx(/blender|cycles|eevee/))return this.say(`<b>Blender</b> is one of my core tools — full pipeline: modelling, PBR texturing, lighting, animation and compositing. The Casio film and the Medieval Windmill game asset are both built start-to-finish in Blender.`);
+  if(rx(/after effects|\bae\b|premiere|\bediting\b/))return this.say(`Motion is a big part of my work — <b>After Effects</b> and <b>Premiere Pro</b> for motion graphics, 2D animation and editing. The Now Engage launch film shows the 2D-motion-plus-3D side.`);
+  if(rx(/unreal|\bue5\b|blueprint|game engine/))return this.say(`<b>Unreal Engine 5</b> is my real-time discipline — interactive walkthroughs, environments and Blueprint logic. Open the <b>UE5 Real-Time Environment</b> project to see it.`);
+  if(rx(/\bhtml\b|\bcss\b|web dev|banner template/))
+    return this.say(`I have basic <b>HTML/CSS</b> knowledge — enough to work with and adjust templates, not to build full websites from scratch. It's a minor supporting skill, not something I lead with.`);
+  if(rx(/\bfigma\b|adobe xd|interface design/))return this.say(`For UI I work in <b>Figma</b> (and Adobe XD) — the Kraftshala landing page is a good example. I have basic HTML/CSS knowledge too, though UI is one part of a broader kit rather than my whole identity.`);
 
   // --- FAVOURITE / BEST / MOST PROUD ---
   if(rx(/\bbest\b|favou?rite|most proud|strongest|flagship|standout|signature piece|proudest/)&&!has('contact','reach','email','way to'))
     return this.say(this.pick([
       `Hard to pick one, but the flagships are <b>NeuraSphere</b> (full brand + 3D + motion) and the <b>UE5 Real-Time Environment</b>. The <b>Casio</b> product film is the pure-craft showcase. Want me to open one?`,
-      `The ones he's proudest of: <b>NeuraSphere</b> for range, the <b>UE5</b> environment for real-time, and <b>Casio Edifice</b> for sheer finish. Say the word and I'll pull one up. 🙂`]));
+      `The ones I'm proudest of: <b>NeuraSphere</b> for range, the <b>UE5</b> environment for real-time, and <b>Casio Edifice</b> for sheer finish. Say the word and I'll pull one up. 🙂`]));
 
   // --- TEAMS / PEOPLE / COLLABORATION (the question that failed before) ---
   if(rx(/team|people|collaborat|cultures?|colleagues?|stakeholder|cross.?function|department|levels?|hierarch|seniority|\bvps?\b|vice president|senior management|leadership|international|domestic|national|scale|enterprise|corporate environment/)&&!has('software','tool'))
     return this.say(this.pick([
-      `Quite a mix, across every level. At <b>Mott MacDonald</b> he worked cross-functionally with fellow designers, engineers, architects, software/digital engineering teams, marketing, senior management, and international clients and VPs — on programmes spanning 5+ countries, not just domestic work. At <b>Sutherland/ATMECS</b> it shifted to software engineers and developers, marketing and research teams, data scientists, VPs and senior stakeholders on a smaller immersive-tech crew. Freelance flips it again — direct one-on-one with CEOs, marketing teams, printers and key stakeholders, owning the whole client relationship himself. Big corporate hierarchy, focused tech pod, solo client work — he's comfortable presenting up to VP/leadership level or running a project end-to-end alone.`,
-      `A real spread, and it covers both ends — individual contributors and senior leadership. Multinational consultancy: designers, engineers, architects, software teams, marketing, senior management, and international clients/VPs across global infrastructure programmes. Immersive-tech team: software engineers, developers, marketing/research, data scientists, and VPs. Freelance: direct with CEOs, marketing teams and printers, no layers in between. He's pitched to VP-level stakeholders and also run a freelance client relationship solo — different scale, same ability to read the room and adapt.`]));
+      `Quite a mix, across every level. At <b>Mott MacDonald</b> I worked cross-functionally with fellow designers, engineers, architects, software/digital engineering teams, marketing, senior management, and international clients and VPs — on programmes spanning 5+ countries, not just domestic work. At <b>Sutherland/ATMECS</b> it shifted to software engineers and developers, marketing and research teams, data scientists, VPs and senior stakeholders on a smaller immersive-tech crew. Freelance flips it again — direct one-on-one with CEOs, marketing teams, printers and key stakeholders, owning the whole client relationship myself. Big corporate hierarchy, focused tech pod, solo client work — I'm comfortable presenting up to VP/leadership level or running a project end-to-end alone.`,
+      `A real spread, and it covers both ends — individual contributors and senior leadership. Multinational consultancy: designers, engineers, architects, software teams, marketing, senior management, and international clients/VPs across global infrastructure programmes. Immersive-tech team: software engineers, developers, marketing/research, data scientists, and VPs. Freelance: direct with CEOs, marketing teams and printers, no layers in between. I've pitched to VP-level stakeholders and also run a freelance client relationship solo — different scale, same ability to read the room and adapt.`]));
 
   // --- JOURNEY / LOCATION / WHERE FROM ---
   if(rx(/where.*from|where.*based|location|kashmir|sopore|\bindia\b|hometown|relocat/))
     return this.say(this.pick([
-      `He's from <b>Sopore</b>, a small town in North Kashmir — apple country, not exactly a design hub. He taught himself the craft there, then worked across <b>Delhi NCR</b> and <b>Hyderabad</b>, and remotely for clients worldwide. Remote-first now, so location's never the obstacle — the work travels.`,
-      `Originally <b>Sopore, North Kashmir</b> — which says something, because he built a creative career far from any studio scene. Since then he's worked in <b>Noida</b> and <b>Hyderabad</b> and remotely across time zones. Short version: small town, global standard.`]));
+      `I'm from <b>Sopore</b>, a small town in North Kashmir — apple country, not exactly a design hub. I taught myself the craft there, then worked across <b>Delhi NCR</b> and <b>Hyderabad</b>, and remotely for clients worldwide. Remote-first now, so location's never the obstacle — the work travels.`,
+      `Originally <b>Sopore, North Kashmir</b> — which says something, because I built a creative career far from any studio scene. Since then I've worked in <b>Noida</b> and <b>Hyderabad</b> and remotely across time zones. Short version: small town, global standard.`]));
 
   // --- SKILLS / TOOLS ---
-  if(rx(/skill|tool|software|what can|disciplin|expert|good at|capab|stack/))
+  if(rx(/skill|tool|software|what can|disciplin|expert|good at|capab|stack/) || findSkillCategory(q)){
+    this.lastTopic='skills';
+    const cat=findSkillCategory(q);
+    if(cat) return this.say(`<b>${cat[0]}:</b> ${cat[1]}`);
+    if(wantsFull){
+      const list=SKILLS_FULL.map(([c,items])=>`<b>${c}:</b> ${items}`).join('<br>');
+      return this.say(`Here's the full list, exactly as it stands on the CV/site:<br><br>${list}<br><br>That's everything — ask me about any one of these and I'll go deeper.`);
+    }
     return this.say(this.pick([
-      `In one breath: <b>brand & visual design</b>, <b>motion graphics</b> (After Effects, Premiere), <b>photoreal 3D</b> (Blender), and <b>real-time work</b> in Unreal Engine 5. Plus 30+ client decks and AI-assisted workflows. The thread is that he can take an idea all the way through — concept, design, 3D, motion, final cut — without handing it off.`,
-      `He's deliberately broad: identity and brand systems, 2D/3D motion, photoreal product visualization in Blender, and interactive real-time work in Unreal Engine 5. Tools are just means to an end for him — the real skill is owning the whole arc from idea to finished, moving thing.`]));
+      `In one breath: <b>brand & visual design</b>, <b>motion graphics</b> (After Effects, Premiere), <b>photoreal 3D</b> (Blender), and <b>real-time work</b> in Unreal Engine 5 — plus AI-assisted workflows. The thread is that I can take an idea all the way through — concept, design, 3D, motion, final cut — without handing it off. Ask for a category (like "AI skills" or "3D skills") or the "full list" and I'll break it down.`,
+      `I'm deliberately broad: identity and brand systems, 2D/3D motion, photoreal product visualization in Blender, interactive real-time work in Unreal Engine 5, and AI-assisted workflows. Tools are just means to an end for me — the real skill is owning the whole arc from idea to finished, moving thing. Want a specific category, or the complete breakdown? Just ask.`]));
+  }
 
   // --- EXPERIENCE / CAREER ---
   if(rx(/experience|career|history|companies|company|sutherland|mott|atmecs|years|background|journey/))
     return this.say(this.pick([
-      `Seven years, three chapters. He freelanced first, then spent ~4 years at <b>Mott MacDonald</b> (a global engineering consultancy) doing visual systems, 3D and 30+ international decks, then moved into <b>immersive tech</b> building real-time Unreal Engine experiences. Idea person and builder in the same body. The Experience section has the full timeline.`,
-      `Short version: started freelance, grew into a senior creative at a multinational consultancy handling brand, 3D and presentation work for global teams, then went deeper into real-time and interactive at an immersive-tech team. Seven years of steadily widening range. Scroll to Experience for the detail.`]));
+      `Seven years, three chapters. I freelanced first, then spent ~4 years at <b>Mott MacDonald</b> (a global engineering consultancy) doing visual systems, 3D and 30+ international decks, then moved into <b>immersive tech</b> building real-time Unreal Engine experiences. Idea person and builder in the same body. The Experience section has the full timeline.`,
+      `Short version: I started freelance, grew into a senior creative at a multinational consultancy handling brand, 3D and presentation work for global teams, then went deeper into real-time and interactive at an immersive-tech team. Seven years of steadily widening range. Scroll to Experience for the detail.`]));
 
   // --- HOW HE WORKS / PROCESS / OWNERSHIP ---
   if(rx(/process|how.*work|approach|method|\bown\b|end.?to.?end|pipeline|workflow/))
     return this.say(this.pick([
-      `His whole thing is owning the full arc. Most briefs get passed between a strategist, a designer, a 3D artist and an editor — he's all of those, so the original idea survives from first sketch to final frame. Remote-first, self-directing, and he leans on AI to speed up the boring parts without cutting the craft.`,
-      `One person, whole brief. He'd rather carry an idea end-to-end — strategy, design, 3D, motion, delivery — than hand it around and watch it dilute. Works remote, manages himself, and holds one rule everywhere: if it doesn't communicate, it doesn't ship.`]));
+      `My whole thing is owning the full arc. Most briefs get passed between a strategist, a designer, a 3D artist and an editor — I'm all of those, so the original idea survives from first sketch to final frame. Remote-first, self-directing, and I lean on AI to speed up the boring parts without cutting the craft.`,
+      `One person, whole brief. I'd rather carry an idea end-to-end — strategy, design, 3D, motion, delivery — than hand it around and watch it dilute. I work remote, manage myself, and hold one rule everywhere: if it doesn't communicate, it doesn't ship.`]));
 
   // --- WHY HIM ---
   if(rx(/why|different|special|stand out|better|unique|choose|pick|reason/))
     return this.say(this.pick([
-      `Honestly? Range plus ownership. Plenty of people are great at one thing — brand, or motion, or 3D. He moves across all of them <i>and</i> into real-time Unreal Engine work, and carries a project start to finish himself. Nothing gets lost in translation between specialists. That's rarer than it sounds.`,
-      `Short answer: he's the "one person, whole pipeline" type. Brand to motion to photoreal 3D to interactive real-time — under one roof, owned end-to-end, proven across very different teams and cultures. If a project needs someone who can hold the whole creative arc, that's the gap he fills.`]));
+      `Honestly? Range plus ownership. Plenty of people are great at one thing — brand, or motion, or 3D. I move across all of them <i>and</i> into real-time Unreal Engine work, and carry a project start to finish myself. Nothing gets lost in translation between specialists. That's rarer than it sounds.`,
+      `Short answer: I'm the "one person, whole pipeline" type. Brand to motion to photoreal 3D to interactive real-time — under one roof, owned end-to-end, proven across very different teams and cultures. If a project needs someone who can hold the whole creative arc, that's the gap I fill.`]));
 
   // --- ABOUT / WHO ---
   if(rx(/who|about|himself|tell me about|introduce|describe/))
     return this.say(this.pick([
-      `Zuhaib's a Senior Creative Designer — seven years across visual, motion, 3D and real-time. He grew up in Sopore, North Kashmir, taught himself the craft, and built a global-standard career from a small town. His philosophy in one line: <i>"if it doesn't communicate, it doesn't ship."</i> Owns briefs end-to-end, and is open to remote, hybrid or on-site work.`,
-      `In short: a senior creative who treats a brand as one continuous problem — what it <i>says</i>, what it <i>shows</i>, and what it lets people <i>do</i>. Seven years, multiple cities, one consistent standard. Warm to work with, serious about outcomes. Ask me anything specific!`]));
+      `I'm a Senior Creative Designer — seven years across visual, motion, 3D and real-time. I grew up in Sopore, North Kashmir, taught myself the craft, and built a global-standard career from a small town. My philosophy in one line: <i>"if it doesn't communicate, it doesn't ship."</i> I own briefs end-to-end, and I'm open to remote, hybrid or on-site work.`,
+      `In short: I'm a senior creative who treats a brand as one continuous problem — what it <i>says</i>, what it <i>shows</i>, and what it lets people <i>do</i>. Seven years, multiple cities, one consistent standard. Warm to work with, serious about outcomes. Ask me anything specific!`]));
 
   // --- CONTACT / AVAILABILITY ---
   if(rx(/contact|email|reach|message|connect|talk|available|availab|open to|get in touch|hire/))
     return this.say(this.pick([
-      `Easiest way is the <b>✉️ Message tab</b> right here — it lands straight in his inbox — or <a href="mailto:Zuhaibmushtaq95@gmail.com">email him directly</a>. He's good about replying. (That green dot up top means he's around. 🟢)`,
-      `Just use the <b>Message tab</b> at the top of this chat, or <a href="mailto:Zuhaibmushtaq95@gmail.com">drop him an email</a>. He reads everything and replies quickly — always up for a good conversation. 🟢`]));
+      `Easiest way is the <b>✉️ Message tab</b> right here — it lands straight in my inbox — or <a href="mailto:Zuhaibmushtaq95@gmail.com">email me directly</a>. I'm good about replying. (That green dot up top means I'm around. 🟢)`,
+      `Just use the <b>Message tab</b> at the top of this chat, or <a href="mailto:Zuhaibmushtaq95@gmail.com">drop me an email</a>. I read everything and reply quickly — always up for a good conversation. 🟢`]));
 
   // --- PROJECTS (general) ---
-  if(rx(/project|portfolio|work|show|gallery|made|created|built/))
+  if(rx(/project|portfolio|work|show|gallery|made|created|built/)){
+    this.lastTopic='projects';
+    if(wantsFull){
+      const titles=P.map(p=>p.title);
+      return this.say(`Here's every project on the site, in gallery order:<br><br>${titles.map((t,i)=>`${i+1}. ${t}`).join('<br>')}<br><br>Say a name and I'll open it.`);
+    }
     return this.say(this.pick([
-      `There's a good range on this site — full brand builds, real-time Unreal Engine environments, photoreal 3D product films, VFX, packaging and more. Want me to open one? Say a name, or tell me what kind of work you're curious about and I'll point you to it.`,
-      `Plenty to look through — brand identity, motion, 3D, real-time, VFX. Rather than dump a list, tell me what interests you (say "3D" or "real-time" or a project name) and I'll take you straight there. 🙂`]));
+      `There's a good range on this site — full brand builds, real-time Unreal Engine environments, photoreal 3D product films, VFX, game assets and more. Want me to open one? Say a name, or tell me what kind of work you're curious about — or ask for the "full list" and I'll name every project.`,
+      `Plenty to look through — brand identity, motion, 3D, real-time, VFX. Tell me what interests you (say "3D" or "real-time" or a project name) and I'll take you straight there, or ask for the "full list" for every title. 🙂`]));
+  }
 
   // --- GREETINGS ---
   if(rx(/^(hi|hey|hello|yo|salaam|assalam|namaste|sup|good morning|good evening|hii+)\b/)||q==='hi'||q==='hey')
     return this.say(this.pick([
-      `Hi! 👋 I'm Zuvi, Zuhaib's portfolio assistant. Ask me about his work, experience, skills or projects — whatever you'd like to know.`,
-      `Hi there! 👋 I'm Zuvi. I know Zuhaib's work and his journey pretty well — what would you like to know?`]));
+      `Hi! 👋 I'm Zuvi — think of me as a quick-chat version of Zuhaib. Ask me about my work, experience, skills or projects — whatever you'd like to know.`,
+      `Hi there! 👋 I'm Zuvi. I know my own work and journey pretty well — what would you like to know?`]));
 
   // --- THANKS / BYE ---
   if(rx(/thank|appreciate|great|awesome|nice|cool|love|amazing|impressive|bye|goodbye|see ya/))
     return this.say(this.pick([
-      `Glad that helped! 🧡 Have a look around the projects — and if something clicks, the Message tab goes straight to Zuhaib.`,
-      `Anytime! If anything here catches your eye, reach out through the Message tab — he'd genuinely like to hear from you.`,
-      `Appreciate that! 🙂 Feel free to explore, and don't be shy about saying hello to Zuhaib directly.`]));
+      `Glad that helped! 🧡 Have a look around the projects — and if something clicks, the Message tab goes straight to me.`,
+      `Anytime! If anything here catches your eye, reach out through the Message tab — I'd genuinely like to hear from you.`,
+      `Appreciate that! 🙂 Feel free to explore, and don't be shy about saying hello directly — the Message tab reaches me.`]));
 
   // --- JOKE ---
   if(rx(/joke|funny|fun fact|something fun|make me laugh/))
     return this.say(this.pick([
-      `A fun one: his Casio Edifice render is so photoreal that people instinctively glance at their own wrist when they see it. Worth a look in the projects. ⌚`,
-      `Here's one — he taught himself the entire pipeline (brand, 3D, motion, real-time) from a small town in Kashmir with no studio scene nearby. The work did the talking. 🙂`]));
+      `A fun one: my Casio Edifice render is so photoreal that people instinctively glance at their own wrist when they see it. Worth a look in the projects. ⌚`,
+      `Here's one — I taught myself the entire pipeline (brand, 3D, motion, real-time) from a small town in Kashmir with no studio scene nearby. The work did the talking. 🙂`]));
 
   // --- AI ---
   if(rx(/\bai\b|artificial|midjourney|chatgpt|automat/))
-    return this.say(`He uses AI as an accelerator, not a crutch — speeding up ideation and iteration so more time goes into craft and direction. Roughly a third faster concept-to-delivery, with final quality kept fully hand-controlled. (And yes — I'm a small scripted helper, not a live AI. Zuhaib kept me lightweight on purpose. 🙂)`);
+    return this.say(`I use AI as an accelerator, not a crutch — it speeds up ideation and iteration so more time goes into craft and direction. Roughly a third faster concept-to-delivery, with final quality kept fully hand-controlled.`);
 
   // --- SPECIFIC TOOLS (deep) ---
   if(rx(/substance|painter|texturing|pbr|texture/))
-    return this.say(`Yes — <b>Substance Painter</b> is part of his 3D pipeline for <b>PBR texturing</b>, and he works in full physically-based workflows across Blender. The Medieval Windmill game asset and his product visualizations lean on this. Photoreal materials are a real strength.`);
+    return this.say(`Yes — <b>Substance Painter</b> is part of my 3D pipeline for <b>PBR texturing</b>, and I work in full physically-based workflows across Blender. The Medieval Windmill game asset and my product visualizations lean on this. Photoreal materials are a real strength.`);
   if(rx(/photoshop|illustrator|indesign|adobe|creative suite|creative cloud/))
-    return this.say(`Across <b>Adobe Creative Suite</b> daily — <b>Photoshop</b> (compositing, retouching, matte work), <b>Illustrator</b> (logos, vector systems, brand-accurate assets), and <b>InDesign</b> (layouts, decks, print). For the Now Engage film he even rebuilt brand-exact task cards in Illustrator by hand with precise RGB values when AI versions weren't accurate.`);
+    return this.say(`Across <b>Adobe Creative Suite</b> daily — <b>Photoshop</b> (compositing, retouching, matte work), <b>Illustrator</b> (logos, vector systems, brand-accurate assets), and <b>InDesign</b> (layouts, decks, print). For the Now Engage film I even rebuilt brand-exact task cards in Illustrator by hand with precise RGB values when AI versions weren't accurate.`);
   if(rx(/3ds max|3dsmax|\bmax\b|maya|zbrush|cinema 4d|c4d/))
-    return this.say(`His main 3D tool is <b>Blender</b> (expert level), and he also works in <b>3ds Max</b>, with <b>Maya</b> and <b>ZBrush</b> in the supporting kit. Modelling, sculpting, look-dev, lighting and rendering — he covers the full 3D arc rather than one slice of it.`);
+    return this.say(`My main 3D tool is <b>Blender</b> (expert level), and I also work in <b>3ds Max</b>, with <b>Maya</b> and <b>ZBrush</b> in the supporting kit. Modelling, sculpting, look-dev, lighting and rendering — I cover the full 3D arc rather than one slice of it.`);
   if(rx(/omniverse|nvidia|real.?time render|render engine/))
-    return this.say(`He works with <b>NVIDIA Omniverse</b> for collaborative real-time 3D, alongside Unreal Engine 5. Real-time rendering and interactive pipelines are an area he's actively deepening.`);
+    return this.say(`I work with <b>NVIDIA Omniverse</b> for collaborative real-time 3D, alongside Unreal Engine 5. Real-time rendering and interactive pipelines are an area I'm actively deepening.`);
   if(rx(/motion|animation|animate|2d|kinetic|mograph|video edit|premiere/))
-    return this.say(`Motion is a core discipline — <b>After Effects</b> and <b>Premiere Pro</b> for motion graphics, 2D animation, kinetic type and editing. He pre-composes cleanly, scripts repetitive work (ExtendScript), and even used custom .jsx automation on the Now Engage film to scatter 28 animated cards in seconds. Open that project to see the 2D-meets-3D side.`);
+    return this.say(`Motion is a core discipline — <b>After Effects</b> and <b>Premiere Pro</b> for motion graphics, 2D animation, kinetic type and editing. I pre-compose cleanly, script repetitive work (ExtendScript), and even used custom .jsx automation on the Now Engage film to scatter 28 animated cards in seconds. Open that project to see the 2D-meets-3D side.`);
   if(rx(/presentation|deck|powerpoint|pitch|slides|keynote/))
-    return this.say(`Presentation design is a quiet specialty — <b>30+ decks</b> for international clients at a global engineering consultancy. Not "pretty slides" but structured visual systems that carry complex engineering and business stories cleanly. It's one of the most underrated parts of his range.`);
+    return this.say(`Presentation design is a quiet specialty — <b>30+ decks</b> for international clients at a global engineering consultancy. Not "pretty slides" but structured visual systems that carry complex engineering and business stories cleanly. It's one of the most underrated parts of my range.`);
   if(rx(/vfx|compositing|composite|green ?screen|roto|visual effects/))
-    return this.say(`Yes — <b>VFX compositing</b> is in his toolkit. The "VFX Breakdown — Fantasy Drone Shot" on this site shows real footage integrated with a fantasy CG environment. Comfortable across the motion-plus-3D-plus-compositing pipeline.`);
+    return this.say(`Yes — <b>VFX compositing</b> is in my toolkit. The "VFX Breakdown — Fantasy Drone Shot" on this site shows real footage integrated with a fantasy CG environment. Comfortable across the motion-plus-3D-plus-compositing pipeline.`);
 
   // --- ACHIEVEMENTS / IMPACT / METRICS ---
   if(rx(/achiev|impact|result|metric|number|accomplish|proud of|highlight|deliver/))
@@ -742,37 +809,37 @@ const Z={
 
   // --- SPECIFIC COMPANIES (deep) ---
   if(rx(/mott|macdonald|engineering consultancy/))
-    return this.say(`At <b>Mott MacDonald</b> (a global engineering consultancy) he spent roughly <b>4 years</b> as a Visualiser / Senior Creative Designer — delivering 50+ visual assets across 5+ countries on major programmes like <b>NEOM THE LINE</b>, <b>Red Sea</b>, <b>Heathrow Terminal 5</b>, <b>HS2</b> and <b>Singapore's North-South Corridor</b>. Work spanned brand and visual systems, photoreal 3D, motion graphics, bid presentations, 3D walkthroughs, website UI, and 30+ international decks. That's where his range and corporate polish were built.`);
+    return this.say(`At <b>Mott MacDonald</b> (a global engineering consultancy) I spent roughly <b>4 years</b> as a Visualiser / Senior Creative Designer — delivering 50+ visual assets across 5+ countries on major programmes like <b>NEOM THE LINE</b>, <b>Red Sea</b>, <b>Heathrow Terminal 5</b>, <b>HS2</b> and <b>Singapore's North-South Corridor</b>. Work spanned brand and visual systems, photoreal 3D, motion graphics, bid presentations, 3D walkthroughs, website UI, and 30+ international decks. That's where my range and corporate polish were built.`);
   if(rx(/sutherland|atmecs|immersive|specialist/))
-    return this.say(`At <b>ATMECS Global / Sutherland</b> he was an <b>Immersive Tech Specialist / Senior Creative Designer</b> for about <b>1.5 years</b> — building <b>digital twin simulations</b> (a rocket engine and an MRI brain scan) with the team in Unreal Engine 5 and Unity, plus an <b>AI agent project</b> where he built and integrated a <b>Metahuman</b> digital character for web deployment. Also handled UE5 UI, gamified walkthroughs, Blueprint logic, 2D/3D motion graphics and advertising videos, and AI-assisted pipelines. The role ended in a business restructure; he's now actively looking for the next senior creative seat.`);
+    return this.say(`At <b>ATMECS Global / Sutherland</b> I was an <b>Immersive Tech Specialist / Senior Creative Designer</b> for about <b>1.5 years</b> — building <b>digital twin simulations</b> (a rocket engine and an MRI brain scan) with the team in Unreal Engine 5 and Unity, plus an <b>AI agent project</b> where I built and integrated a <b>Metahuman</b> digital character for web deployment. Also handled UE5 UI, gamified walkthroughs, Blueprint logic, 2D/3D motion graphics and advertising videos, and AI-assisted pipelines. The role ended in a business restructure; I'm now actively looking for the next senior creative seat.`);
   if(rx(/pixel buzz|pixelbuzz|freelance brand|own brand/))
-    return this.say(`<b>Pixel Buzz</b> is his freelance brand — where it all started and still runs alongside. Direct work with founders and businesses on brand identity, motion, 3D and campaigns, with strong client retention. Currently he's doing freelance work for <b>Philips / Signify</b> through an agency, for example.`);
+    return this.say(`<b>Pixel Buzz</b> is my freelance brand — where it all started and still runs alongside. Direct work with founders and businesses on brand identity, motion, 3D and campaigns, with strong client retention. Currently I'm doing freelance work for <b>Philips / Signify</b> through an agency, for example.`);
 
   // --- WHAT'S HE LOOKING FOR / NOTICE / START / FIT ---
   if(rx(/looking for|seeking|ideal role|next role|kind of role|what does he want|notice|start date|join|when can/))
     return this.say(this.pick([
-      `He's after a <b>Senior Creative Designer, Creative Lead or Art Director</b> seat where range is an asset — somewhere he can own work from idea to finished, moving, interactive thing. Open to <b>remote, hybrid or on-site</b>. Available to start soon. The <b>Message tab</b> is the fastest way to talk specifics.`,
-      `Ideal fit: a team that needs one person who can carry brand, motion, 3D and real-time without handing off between specialists. Senior / lead / art-director level, any working setup (remote, hybrid, on-site). He can start quickly — reach him via the Message tab.`]));
+      `I'm after a <b>Senior Creative Designer, Creative Lead or Art Director</b> seat where range is an asset — somewhere I can own work from idea to finished, moving, interactive thing. Open to <b>remote, hybrid or on-site</b>. Available to start soon. The <b>Message tab</b> is the fastest way to talk specifics.`,
+      `Ideal fit: a team that needs one person who can carry brand, motion, 3D and real-time without handing off between specialists. Senior / lead / art-director level, any working setup (remote, hybrid, on-site). I can start quickly — reach me via the Message tab.`]));
 
   // --- AI TOOLS (specific list) ---
-  if(rx(/midjourney|firefly|runway|generative|ai tool|ai-assist|ai assist|gen ai/))
-    return this.say(`On the AI side he uses <b>Midjourney</b>, <b>Adobe Firefly</b> and <b>Runway</b> for ideation, look exploration and speeding up iteration — always as an accelerator, never the final craft. He's careful about it: on brand-exact work he rebuilds assets by hand when AI isn't precise enough. Net effect is roughly 30% faster delivery without losing control of quality.`);
+  if(rx(/midjourney|firefly|runway|generative|ai tool|ai-assist|ai assist|gen ai|claude|gemini|google ai studio|kling|kimi|chatgpt|\bmcp\b/))
+    return this.say(`On the AI side I run a real stack: <b>Midjourney</b>, <b>Runway</b> and <b>Adobe Firefly</b> for image ideation, <b>Gemini</b> and <b>Kling</b> for video generation, and <b>Claude</b>, <b>ChatGPT</b> and <b>Kimi</b> as AI assistants for automation. I also use <b>MCP-based workflows in Blender and Unreal Engine</b> for scripting, Blueprint logic and UI/UX acceleration — that's how the Sutherland digital-twin and Metahuman work moved faster. Always an accelerator, never the final craft — on brand-exact work I rebuild by hand when AI isn't precise enough. Net effect is roughly 30% faster delivery without losing control of quality.`);
 
   // --- UI / UX / WEB ---
   if(rx(/\bui\b|\bux\b|web design|website|landing|interface|figma|adobe xd|prototyp/))
-    return this.say(`For <b>UI / interface work</b> he uses <b>Figma</b> and <b>Adobe XD</b> — the Kraftshala landing page on this site is a good example. He also hand-built this entire portfolio site himself. UI is one capable tool in a much broader kit, not the whole story.`);
+    return this.say(`For <b>UI / interface work</b> I use <b>Figma</b> and <b>Adobe XD</b> — the Kraftshala landing page on this site is a good example. I also hand-built this entire portfolio site myself. UI is one capable tool in a much broader kit, not the whole story.`);
 
   // --- GRACEFUL HUMAN FALLBACK ---
-  this.chipsSet(['What is he good at?','His experience','Is he available?','Get his CV']);
+  this.chipsSet(['What are you good at?','Your experience','Are you available?','Get your CV']);
   return this.say(this.pick([
-    `That's a fair question — I'm a small helper here, so I might not have every answer, but I know his <b>work</b>, <b>experience</b>, <b>skills</b> and <b>story</b> well. Try me on one of those, or use the <b>✉️ Message tab</b> to ask Zuhaib himself — he'll give you a proper answer.`,
-    `I may not have that specific detail, but I can tell you about his <b>projects</b>, <b>experience</b>, <b>skills</b> and <b>how he works</b>. For anything else, the <b>✉️ Message tab</b> goes straight to Zuhaib.`,
-    `Good question — and an honest answer: I only really know Zuhaib's world (his work, range and path). For anything beyond that, the <b>Message tab</b> goes right to him. Happy to help with the rest though!`]));
+    `That's a fair question — I'm a small helper here, so I might not have every answer, but I know my own <b>work</b>, <b>experience</b>, <b>skills</b> and <b>story</b> well. Try me on one of those, or use the <b>✉️ Message tab</b> for a direct reply from me.`,
+    `I may not have that specific detail, but I can tell you about my <b>projects</b>, <b>experience</b>, <b>skills</b> and <b>how I work</b>. For anything else, the <b>✉️ Message tab</b> goes straight to me.`,
+    `Good question — and an honest answer: I only really know my own world (my work, range and path). For anything beyond that, the <b>Message tab</b> goes right to me. Happy to help with the rest though!`]));
  },
  toggle(state){this.open=state??!this.open;this.el.classList.toggle('open',this.open);
   if(this.open){SFX.chirp();if(!this.greeted){this.greeted=true;
-   this.say(this.pick([`Hi, I'm <b>Zuvi</b> 👋 — Zuhaib's portfolio assistant. Ask me about his work, experience, skills or projects, or tap a question below.`,`Hello! I'm <b>Zuvi</b> 👋 I can tell you about Zuhaib's work, experience and skills — ask away, or pick one to start.`]),500);
-   this.chipsSet(['Who is Zuhaib?','What tools does he use?','His experience','Is he available?','Get his CV']);}}}
+   this.say(this.pick([`Hi, I'm <b>Zuvi</b> 👋 — think of me as Zuhaib in quick-chat form. Ask me about my work, experience, skills or projects, or tap a question below.`,`Hello! I'm <b>Zuvi</b> 👋 — a fast, scripted stand-in for Zuhaib. Ask me about my work, experience and skills — ask away, or pick one to start.`]),500);
+   this.chipsSet(['Who are you?','What tools do you use?','Your experience','Are you available?','Get your CV']);}}}
 };
 Z.fab.addEventListener('click',()=>Z.toggle());
 document.getElementById('zuviClose').addEventListener('click',()=>Z.toggle(false));
