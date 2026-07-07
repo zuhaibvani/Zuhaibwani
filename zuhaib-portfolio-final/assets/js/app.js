@@ -564,7 +564,7 @@ const SKILLS_FULL = [
  ["Real-Time &amp; Interactive","Gamification Design, Walkthrough Experiences, Blueprint Logic, Level Design, Niagara FX, Sequencer, Dynamic Lighting — Unreal Engine 5, Unity"],
  ["UI &amp; Web","UI Design, Wireframing, Prototyping, Design Systems — Figma, Adobe XD; basic HTML/CSS"],
  ["Presentation &amp; Communication Design","PowerPoint Deck Design, Slide Layout &amp; Typography, Data Visualization, Diagram &amp; Iconography Design, Infographic Design, Web Standards"],
- ["AI-Assisted Design","Midjourney, Runway, Firefly, Gemini, Kling, Google AI Studio — image/video generation; Claude, ChatGPT, Kimi — AI assistants and automation; MCP-based workflow automation in Blender and Unreal Engine"],
+ ["AI-Assisted Design","Midjourney, Firefly, Google AI Studio — image generation; Runway, Gemini, Kling, Grok — video generation; Grok also for quick research; Claude, ChatGPT, Kimi — AI assistants and automation; MCP-based workflow automation in Blender and Unreal Engine"],
  ["Supporting Tools","Autodesk Maya, ZBrush, Substance Painter, NVIDIA Omniverse"],
 ];
 const CERTS_FULL = ["Complete Figma Course: Web & Mobile Projects from Scratch","Master Digital Product Design: UX Research & UI Design",
@@ -572,7 +572,7 @@ const CERTS_FULL = ["Complete Figma Course: Web & Mobile Projects from Scratch",
  "Cinematography and Filmmaking","Diploma in Graphic Designing","Leading Hybrid and Remote Teams","Systems Thinking+","Introduction to Design Thinking"];
 // order matters — most specific first, so e.g. "ai" is caught before generic "design" words
 const SKILL_CATEGORY_MAP = [
- [/\bai\b|\bmcp\b|midjourney|firefly|runway|claude|gemini|\bkling\b|\bkimi\b|chatgpt|google ai studio|generative/, "AI-Assisted Design"],
+ [/\bai\b|\bmcp\b|midjourney|firefly|runway|claude|gemini|\bkling\b|\bkimi\b|chatgpt|google ai studio|\bgrok\b|generative/, "AI-Assisted Design"],
  [/\b3d\b|blender|3ds max|archviz|\bpbr\b|texturing|uv mapping|sculpt/, "3D Visualization"],
  [/real.?time|unreal|\bue5\b|blueprint|gamif|niagara|walkthrough/, "Real-Time &amp; Interactive"],
  [/motion|\bvideo\b|animation|storyboard|after effects|premiere|editing/, "Motion &amp; Video"],
@@ -822,8 +822,8 @@ const Z={
       `Ideal fit: a team that needs one person who can carry brand, motion, 3D and real-time without handing off between specialists. Senior / lead / art-director level, any working setup (remote, hybrid, on-site). I can start quickly — reach me via the Message tab.`]));
 
   // --- AI TOOLS (specific list) ---
-  if(rx(/midjourney|firefly|runway|generative|ai tool|ai-assist|ai assist|gen ai|claude|gemini|google ai studio|kling|kimi|chatgpt|\bmcp\b/))
-    return this.say(`On the AI side I run a real stack: <b>Midjourney</b>, <b>Runway</b> and <b>Adobe Firefly</b> for image ideation, <b>Gemini</b> and <b>Kling</b> for video generation, and <b>Claude</b>, <b>ChatGPT</b> and <b>Kimi</b> as AI assistants for automation. I also use <b>MCP-based workflows in Blender and Unreal Engine</b> for scripting, Blueprint logic and UI/UX acceleration — that's how the Sutherland digital-twin and Metahuman work moved faster. Always an accelerator, never the final craft — on brand-exact work I rebuild by hand when AI isn't precise enough. Net effect is roughly 30% faster delivery without losing control of quality.`);
+  if(rx(/midjourney|firefly|runway|generative|ai tool|ai-assist|ai assist|gen ai|claude|gemini|google ai studio|kling|kimi|chatgpt|\bgrok\b|\bmcp\b/))
+    return this.say(`On the AI side I run a real stack: <b>Midjourney</b> and <b>Adobe Firefly</b> for image generation, <b>Runway</b>, <b>Gemini</b>, <b>Kling</b> and <b>Grok</b> for video generation (Grok also for quick research), and <b>Claude</b>, <b>ChatGPT</b> and <b>Kimi</b> as AI assistants for automation. I also use <b>MCP-based workflows in Blender and Unreal Engine</b> for scripting, Blueprint logic and UI/UX acceleration — that's how the Sutherland digital-twin and Metahuman work moved faster. Always an accelerator, never the final craft — on brand-exact work I rebuild by hand when AI isn't precise enough. Net effect is roughly 30% faster delivery without losing control of quality.`);
 
   // --- UI / UX / WEB ---
   if(rx(/\bui\b|\bux\b|web design|website|landing|interface|figma|adobe xd|prototyp/))
