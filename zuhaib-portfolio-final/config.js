@@ -7,8 +7,8 @@
    ============================================================ */
 window.SITE_CONFIG = {
   availability: {
-    remote: false,     // Open to remote roles, worldwide
-    delhi: true,      // Open to full-time, Delhi NCR
+    remote: true,     // Open to remote roles, worldwide
+    delhi: false,      // Open to full-time, Delhi NCR
     freelance: true   // Open for freelance
   }
 };
