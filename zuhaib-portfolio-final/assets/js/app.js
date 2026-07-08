@@ -598,8 +598,35 @@ const Z={
  user(txt){const d=document.createElement('div');d.className='z-msg user';d.textContent=txt;this.body.appendChild(d);this.scroll();},
  scroll(){this.body.scrollTop=this.body.scrollHeight;},
  chipsSet(arr){this.chips.innerHTML=arr.map(c=>`<button data-q="${c}">${c}</button>`).join('');
-  this.chips.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{this.ask(b.dataset.q);}));},
- ask(q){this.user(q);setTimeout(()=>this.answer(q.toLowerCase().trim(),q),350);},
+  this.chips.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{this.askScripted(b.dataset.q);}));},
+ askScripted(q){this.user(q);setTimeout(()=>this.answer(q.toLowerCase().trim(),q),350);},
+ mdToHtml(s){
+  return s
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/\*(.+?)\*/g,'<i>$1</i>')
+    .replace(/^[\s]*[-*•]\s+(.+)$/gm,'• $1')
+    .replace(/\n/g,'<br>');
+ },
+ async ask(q){
+  this.user(q);
+  const typing=document.createElement('div');typing.className='z-msg bot z-typing';typing.innerHTML='<i></i><i></i><i></i>';this.body.appendChild(typing);this.scroll();
+  const ac=new AbortController();
+  const timer=setTimeout(()=>ac.abort(),6000);
+  try{
+   const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q}),signal:ac.signal});
+   clearTimeout(timer);
+   if(!res.ok) throw new Error('bad status '+res.status);
+   const data=await res.json();
+   if(!data||!data.answer) throw new Error('no answer');
+   typing.remove();
+   this.say(this.mdToHtml(data.answer),200);
+  }catch(err){
+   clearTimeout(timer);
+   typing.remove();
+   this.answer(q.toLowerCase().trim(),q);
+  }
+ },
  pick(arr){return arr[Math.floor(Math.random()*arr.length)];},
  answer(q,raw){
   const open=(id,nm)=>{this.say(this.pick([`Sure — opening <b>${nm}</b> now 🎬`,`On it. Here's <b>${nm}</b> 👇`,`Let me pull up <b>${nm}</b> for you.`]),400);setTimeout(()=>{this.toggle(false);openProject(id);},900);};
