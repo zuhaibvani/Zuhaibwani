@@ -621,7 +621,7 @@ const Z={
    const data=await res.json();
    if(!data||!data.answer) throw new Error('no answer');
    typing.remove();
-   const cta='<br><br>For more details, <a href="#" class="z-cta-msg">drop a message above</a> or <a href="mailto:Zuhaibmushtaq95@gmail.com">email me directly</a>.';
+   const cta='<br><br>For more details, <a href="#" class="z-cta-msg">drop a message above</a> and Zuhaib will get back to you.';
    this.say(this.mdToHtml(data.answer)+cta,200);
   }catch(err){
    clearTimeout(timer);
@@ -776,8 +776,8 @@ const Z={
   // --- CONTACT / AVAILABILITY ---
   if(rx(/contact|email|reach|message|connect|talk|available|availab|open to|get in touch|hire/))
     return this.say(this.pick([
-      `Easiest way is the <b>✉️ Message tab</b> right here — it lands straight in my inbox — or <a href="mailto:Zuhaibmushtaq95@gmail.com">email me directly</a>. I'm good about replying. (That green dot up top means I'm around. 🟢)`,
-      `Just use the <b>Message tab</b> at the top of this chat, or <a href="mailto:Zuhaibmushtaq95@gmail.com">drop me an email</a>. I read everything and reply quickly — always up for a good conversation. 🟢`]));
+      `Easiest way is the <b>✉️ Message tab</b> right here — it lands straight in my inbox. I'm good about replying. (That green dot up top means I'm around. 🟢)`,
+      `Just use the <b>Message tab</b> at the top of this chat. I read everything and reply quickly — always up for a good conversation. 🟢`]));
 
   // --- PROJECTS (general) ---
   if(rx(/project|portfolio|work|show|gallery|made|created|built/)){
