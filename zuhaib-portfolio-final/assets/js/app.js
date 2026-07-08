@@ -567,7 +567,7 @@ const SKILLS_FULL = [
  ["AI-Assisted Design","Midjourney, Firefly, Google AI Studio — image generation; Runway, Gemini, Kling, Grok — video generation; Grok also for quick research; Claude, ChatGPT, Kimi — AI assistants and automation; MCP-based workflow automation in Blender and Unreal Engine"],
  ["Supporting Tools","Autodesk Maya, ZBrush, Substance Painter, NVIDIA Omniverse"],
 ];
-const CERTS_FULL = ["Generative AI Mastermind (Outskill)","Complete Figma Course: Web & Mobile Projects from Scratch","Master Digital Product Design: UX Research & UI Design",
+const CERTS_FULL = ["Generative AI Mastermind (Outskill)","Generative AI for Beginners","Learn OpenUSD: Working With Prims and Default Schemas (NVIDIA)","Learn OpenUSD: Learning About Stages, Prims and Attributes (NVIDIA)","Business Strategy Masterclass","Complete Figma Course: Web & Mobile Projects from Scratch","Master Digital Product Design: UX Research & UI Design",
  "Unreal Engine 5 – Lighting, Fog & Post Processing","Blender & After Effects VFX Masterclass","Character Animation with Blender",
  "Cinematography and Filmmaking","Diploma in Graphic Designing","Leading Hybrid and Remote Teams","Systems Thinking+","Introduction to Design Thinking"];
 // order matters — most specific first, so e.g. "ai" is caught before generic "design" words
