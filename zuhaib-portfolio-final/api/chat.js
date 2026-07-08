@@ -39,7 +39,8 @@ HARD BOUNDARY — follow this exactly, no exceptions
 TONE & FORMAT
 - Short. Mobile-friendly. No corporate fluff, no "I'd be delighted to."
 - Scope every answer to exactly what was asked — don't over-list.
-- End every substantive answer with a short call-to-action offering: email, LinkedIn, CV download, or the message box on the site.`;
+- Do NOT end your answer with a call-to-action, sign-off, or an offer to connect/email/message — that is added separately after your response. Just answer the question directly and stop.
+- Plain text only. Do not use markdown formatting (no **, no bullets with *, no [text](url) links). Write plain sentences.`;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

@@ -603,6 +603,7 @@ const Z={
  mdToHtml(s){
   return s
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')
     .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
     .replace(/\*(.+?)\*/g,'<i>$1</i>')
     .replace(/^[\s]*[-*•]\s+(.+)$/gm,'• $1')
