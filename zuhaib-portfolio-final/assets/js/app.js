@@ -620,7 +620,8 @@ const Z={
    const data=await res.json();
    if(!data||!data.answer) throw new Error('no answer');
    typing.remove();
-   this.say(this.mdToHtml(data.answer),200);
+   const cta='<br><br>For more details, drop a message above or <a href="mailto:Zuhaibmushtaq95@gmail.com">email me directly</a>.';
+   this.say(this.mdToHtml(data.answer)+cta,200);
   }catch(err){
    clearTimeout(timer);
    typing.remove();
