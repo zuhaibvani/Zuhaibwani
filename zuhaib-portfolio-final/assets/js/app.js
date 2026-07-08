@@ -621,7 +621,7 @@ const Z={
    const data=await res.json();
    if(!data||!data.answer) throw new Error('no answer');
    typing.remove();
-   const cta='<br><br>For more details, drop a message above or <a href="mailto:Zuhaibmushtaq95@gmail.com">email me directly</a>.';
+   const cta='<br><br>For more details, <a href="#" class="z-cta-msg">drop a message above</a> or <a href="mailto:Zuhaibmushtaq95@gmail.com">email me directly</a>.';
    this.say(this.mdToHtml(data.answer)+cta,200);
   }catch(err){
    clearTimeout(timer);
@@ -874,6 +874,10 @@ Z.fab.addEventListener('click',()=>Z.toggle());
 document.getElementById('zuviClose').addEventListener('click',()=>Z.toggle(false));
 document.getElementById('zSend').addEventListener('click',()=>{const i=document.getElementById('zInput');if(i.value.trim()){Z.ask(i.value.trim());i.value='';}});
 document.getElementById('zInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('zSend').click();}});
+function switchZTab(tabName){
+  const btn=document.querySelector(`.z-tabs button[data-tab="${tabName}"]`);
+  if(btn) btn.click();
+}
 document.querySelectorAll('.z-tabs button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.z-tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
   const msg=b.dataset.tab==='msg';
@@ -882,6 +886,10 @@ document.querySelectorAll('.z-tabs button').forEach(b=>b.addEventListener('click
   document.getElementById('zChips').style.display=msg?'none':'flex';
   document.getElementById('zInputWrap').style.display=msg?'none':'flex';SFX.pop();
 }));
+document.getElementById('zBody').addEventListener('click',e=>{
+  const t=e.target.closest('.z-cta-msg');
+  if(t){ e.preventDefault(); switchZTab('msg'); }
+});
 document.getElementById('zForm').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,btn=f.querySelector('button');
   const msg=(f.message.value||'').trim();
