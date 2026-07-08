@@ -8,7 +8,7 @@
 window.SITE_CONFIG = {
   availability: {
     remote: true,     // Open to remote roles, worldwide
-    delhi: false,      // Open to full-time, Delhi NCR
+    delhi: true,      // Open to full-time, Delhi NCR
     freelance: true   // Open for freelance
   }
 };
