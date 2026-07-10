@@ -593,7 +593,8 @@ const Z={
  body:document.getElementById('zBody'),chips:document.getElementById('zChips'),
  greeted:false,
  lastTopic:null,
- say(html,delay=600){const t=document.createElement('div');t.className='z-msg bot z-typing';t.innerHTML='<i></i><i></i><i></i>';this.body.appendChild(t);this.scroll();
+ showTyping(){const t=document.createElement('div');t.className='z-msg bot z-typing';t.innerHTML='<i></i><i></i><i></i>';this.body.appendChild(t);this.scroll();return t;},
+ say(html,delay=600){const t=this.showTyping();
   setTimeout(()=>{t.classList.remove('z-typing');t.innerHTML=html;SFX.chirp();this.scroll();},delay);},
  user(txt){const d=document.createElement('div');d.className='z-msg user';d.textContent=txt;this.body.appendChild(d);this.scroll();},
  scroll(){this.body.scrollTop=this.body.scrollHeight;},
@@ -611,7 +612,7 @@ const Z={
  },
  async ask(q){
   this.user(q);
-  const typing=document.createElement('div');typing.className='z-msg bot z-typing';typing.innerHTML='<i></i><i></i><i></i>';this.body.appendChild(typing);this.scroll();
+  const typing=this.showTyping();
   const ac=new AbortController();
   const timer=setTimeout(()=>ac.abort(),6000);
   try{
