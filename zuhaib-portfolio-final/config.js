@@ -21,3 +21,9 @@ window.SITE_CONFIG = {
     if (window.SITE_CONFIG.cvDownload === false) document.documentElement.classList.add('cv-off');
   } catch (e) {}
 })();
+(function () {
+  try {
+    var a = (window.SITE_CONFIG && window.SITE_CONFIG.availability) || {};
+    if (a.remote || a.delhi || a.freelance) document.documentElement.classList.add('avail-active');
+  } catch (e) {}
+})();
