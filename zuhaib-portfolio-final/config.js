@@ -11,7 +11,7 @@ window.SITE_CONFIG = {
     delhi: true,      // Open to full-time, Delhi NCR
     freelance: false  // Open for freelance
   },
-  cvDownload: true    // Show the "Download CV" buttons on the site (false hides them all)
+  cvDownload: false    // Show the "Download CV" buttons on the site (false hides them all)
 };
 (function () {
   try {
