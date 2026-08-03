@@ -63,7 +63,7 @@ nav.scrolled{background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-fi
 .hero-inner{position:relative;z-index:3;width:100%}
 .hero-grid{display:grid;grid-template-columns:1.22fr .78fr;gap:60px;align-items:center}
 @media(max-width:920px){.hero-grid{grid-template-columns:1fr}.hero-portrait{max-width:330px;margin:0 auto}}
-.hero h1{font-size:clamp(2.6rem,6.6vw,5.1rem);font-weight:700;margin:22px 0 0}
+.hero h1{font-size:clamp(2.6rem,6.6vw,4.25rem);font-weight:700;margin:22px 0 0}
 .hero h1 em{font-style:normal;color:var(--accent)}
 .hero h1 .alt{color:var(--accent)}
 .hero-sub{max-width:520px;color:var(--ink-2);font-size:clamp(1rem,2vw,1.15rem);margin-top:24px}
