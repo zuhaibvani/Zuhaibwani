@@ -65,13 +65,13 @@ nav.scrolled{background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-fi
 @media(max-width:920px){.hero-grid{grid-template-columns:1fr}.hero-portrait{max-width:330px;margin:0 auto}}
 .hero h1{font-size:clamp(2.6rem,6.6vw,5.1rem);font-weight:700;margin:22px 0 0}
 .hero h1 em{font-style:normal;color:var(--accent)}
-.hero h1 .alt{color:var(--accent-2)}
+.hero h1 .alt{color:var(--accent)}
 .hero-sub{max-width:520px;color:var(--ink-2);font-size:clamp(1rem,2vw,1.15rem);margin-top:24px}
 .hero-sub b{color:var(--ink);font-weight:600}
 .hero-cta{display:flex;gap:14px;margin-top:36px;flex-wrap:wrap}
 .cred-strip{margin-top:22px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .cred-label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);font-weight:600;font-family:'Space Grotesk'}
-.cred-item{font-size:13px;font-weight:600;color:var(--ink);font-family:'Space Grotesk';border:1px solid color-mix(in srgb,var(--accent-2) 45%,var(--line));background:color-mix(in srgb,var(--accent-2) 12%,transparent);padding:6px 14px;border-radius:var(--r-pill)}
+.cred-item{font-size:13px;font-weight:600;color:var(--ink);font-family:'Space Grotesk';border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));background:color-mix(in srgb,var(--accent) 12%,transparent);padding:6px 14px;border-radius:var(--r-pill)}
 .btn{display:inline-flex;align-items:center;gap:9px;padding:14px 24px;border-radius:var(--r-pill);font-weight:600;font-size:15px;font-family:'Space Grotesk';transition:transform .25s var(--ease),box-shadow .25s,background .25s,border-color .25s;cursor:pointer;border:0}
 .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 30px var(--glow)}
 .btn-primary:hover{transform:translateY(-3px);box-shadow:0 14px 44px var(--glow)}
