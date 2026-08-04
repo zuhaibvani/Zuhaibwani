@@ -342,7 +342,10 @@
 <div class="pm" id="pm">
   <div class="pm-bar">
     <div class="pt"><span class="d"></span><span class="nm" id="pmBarTitle">Project</span></div>
-    <button class="pm-close" id="pmclose">Close ✕</button>
+    <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">
+      <button class="pm-close" id="pmshare" title="Copy shareable link to this project" aria-label="Copy shareable link to this project">🔗 Share</button>
+      <button class="pm-close" id="pmclose">Close ✕</button>
+    </div>
   </div>
   <div class="pm-inner" id="pminner"></div>
 </div>
