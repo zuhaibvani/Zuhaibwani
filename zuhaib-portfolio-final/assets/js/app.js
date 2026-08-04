@@ -20,6 +20,11 @@ function applyTheme(){document.documentElement.dataset.theme=theme;themeBtn.text
 themeBtn.addEventListener('click',()=>{theme=theme==='dark'?'light':'dark';localStorage.setItem('zw_theme',theme);SFX.sw();applyTheme();});
 applyTheme();
 
+/* ============ SHAREABLE PROJECT LINKS — state ============ */
+/* Every project MUST be deep-linkable via #project=<id>. See SITE_ARCHITECTURE_RULES.md. */
+let CURRENT_PROJECT_ID=null;
+const BASE_TITLE=document.title;
+
 /* ============ PROJECT DATA ============ */
 
 
@@ -364,10 +369,47 @@ function openProject(id){
   renderPDFs();
   setTimeout(()=>{const fp=document.querySelector('#pm .pdfv-scroll');if(fp){try{fp.focus({preventScroll:true});}catch(_){fp.focus();}}},160);
   pm.classList.add('open');document.body.style.overflow='hidden';document.body.classList.add('pm-open');pm.scrollTop=0;
+  /* SHAREABLE PROJECT LINKS — do not remove. See SITE_ARCHITECTURE_RULES.md. */
+  CURRENT_PROJECT_ID=id;
+  document.title=p.title.replace(/—.*/,'').trim()+' — Zuhaib Wani';
+  if(location.hash!=='#project='+id){history.pushState({project:id},'','#project='+id);}
 }
 
-function closeProject(){pdfExitMax();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';document.body.classList.remove('pm-open');}
+function closeProject(){pdfExitMax();SFX.whoosh();pm.classList.remove('open');pmInner.innerHTML='';document.body.style.overflow='';document.body.classList.remove('pm-open');
+  CURRENT_PROJECT_ID=null;
+  document.title=BASE_TITLE;
+  if(/^#project=/.test(location.hash)){history.pushState({},'',location.pathname+location.search);}
+}
 document.getElementById('pmclose').addEventListener('click',closeProject);
+document.getElementById('pmshare').addEventListener('click', async ()=>{
+  if(!CURRENT_PROJECT_ID)return;
+  const url=location.origin+location.pathname+'#project='+CURRENT_PROJECT_ID;
+  const btn=document.getElementById('pmshare');
+  if(navigator.share){
+    try{await navigator.share({title:document.title,url});}catch(_){/* user cancelled — no-op */}
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(url);
+    const orig=btn.textContent;btn.textContent='Copied ✓';SFX.pop();
+    setTimeout(()=>{btn.textContent=orig;},1600);
+  }catch(_){
+    window.prompt('Copy this link:',url);
+  }
+});
+window.addEventListener('popstate',e=>{
+  const id=e.state&&e.state.project;
+  if(id){openProject(id);}else{closeProject();}
+});
+window.addEventListener('hashchange',()=>{
+  const m=location.hash.match(/^#project=(.+)$/);
+  if(m){const id=decodeURIComponent(m[1]);if(P.find(x=>x.id===id))openProject(id);}
+  else if(pm.classList.contains('open')){closeProject();}
+});
+(function openProjectFromInitialURL(){
+  const m=location.hash.match(/^#project=(.+)$/);
+  if(m){const id=decodeURIComponent(m[1]);if(P.find(x=>x.id===id))openProject(id);}
+})();
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){if(document.querySelector('.pdfv.maxed')){e.preventDefault();pdfExitMax();return;}closeProject();closeLB();}
   if(lb.classList.contains('open')){if(e.key==='ArrowRight')lbStep(1);if(e.key==='ArrowLeft')lbStep(-1);}
