@@ -7,7 +7,7 @@
    ============================================================ */
 window.SITE_CONFIG = {
   availability: {
-    remote: true,     // Open to remote roles, worldwide
+    remote: false,     // Open to remote roles, worldwide
     delhi: false,      // Open to full-time, Delhi NCR
     freelance: false  // Open for freelance
   },
