@@ -7,8 +7,8 @@
    ============================================================ */
 window.SITE_CONFIG = {
   availability: {
-    remote: true,     // Open to remote roles, worldwide
-    delhi: true,      // Open to full-time, Delhi NCR
+    remote: false,     // Open to remote roles, worldwide
+    delhi: false,      // Open to full-time, Delhi NCR
     freelance: false  // Open for freelance
   },
   cvDownload: false    // Show the "Download CV" buttons on the site (false hides them all)
